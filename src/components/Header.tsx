@@ -1,6 +1,7 @@
 // src/components/Header.tsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import logo from '@/assets/trackfit-logo.png'; 
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -16,9 +17,9 @@ export default function Header() {
         
       <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
       <Link to="/" className="flex items-center gap-2">
-        <img src="../src/assets/trackfit-logo.png" alt="TrackFit app logo" className="w-20 h-20 transition-transform hover:scale-105"
-/>
-    </Link>
+        <img src={logo} alt="TrackFit app logo" className="w-20 h-20 transition-transform hover:scale-105" />
+        </Link>
+     
         <button
           className="md:hidden text-white focus:outline-none"
           onClick={() => setMenuOpen(!menuOpen)}

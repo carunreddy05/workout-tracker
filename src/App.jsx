@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import WorkoutEntry from './pages/WorkoutEntry';
@@ -12,6 +12,9 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/entry" element={<WorkoutEntry />} />
           <Route path="/history" element={<WorkoutHistory />} />
+
+          {/* 🔥 Catch-all route: redirects unknown paths to dashboard */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
     </BrowserRouter>
@@ -19,4 +22,3 @@ function App() {
 }
 
 export default App;
-  
