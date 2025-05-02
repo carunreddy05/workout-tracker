@@ -13,7 +13,7 @@ export default function Header() {
   ];
 
   return (
-    <header className="bg-zinc-900 text-white shadow-md">
+    <header className="bg-black text-white shadow-md">
         
       <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
       <Link to="/" className="flex items-center gap-2">

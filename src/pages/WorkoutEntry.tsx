@@ -1,4 +1,4 @@
-// src/pages/WorkoutEntry.tsx
+
 import React, { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Calendar } from 'react-calendar';
@@ -23,6 +23,10 @@ export default function WorkoutEntry() {
   const [exerciseList, setExerciseList] = useState<any[]>([]);
   const [notes, setNotes] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [includeCardio, setIncludeCardio] = useState(false);
+  const [incline, setIncline] = useState('');
+  const [speed, setSpeed] = useState('');
+  const [cardioTime, setCardioTime] = useState('');
   const entriesEndRef = useRef(null);
 
   const addExercise = () => {
@@ -41,17 +45,22 @@ export default function WorkoutEntry() {
         workoutType,
         exercises: exerciseList,
         notes,
+        cardio: includeCardio
+          ? { incline, speed, time: cardioTime }
+          : null,
       };
       await addDoc(collection(db, "gymEntries"), newEntry);
 
-      // Local Storage Save
       const localEntries = JSON.parse(localStorage.getItem('gymEntries') || '[]');
       localStorage.setItem('gymEntries', JSON.stringify([...localEntries, newEntry]));
 
-      // Reset form
       setWorkoutType('');
       setExerciseList([]);
       setNotes('');
+      setIncludeCardio(false);
+      setIncline('');
+      setSpeed('');
+      setCardioTime('');
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
     }
@@ -59,7 +68,6 @@ export default function WorkoutEntry() {
 
   return (
     <div className="space-y-8">
-      {/* Success Modal */}
       <AnimatePresence>
         {showSuccessModal && (
           <motion.div
@@ -80,7 +88,6 @@ export default function WorkoutEntry() {
 
       <Card className="bg-zinc-800 border border-zinc-700">
         <CardContent className="space-y-6 p-6">
-          {/* Date */}
           <div>
             <label className="block font-medium mb-1 text-zinc-300">Select Date</label>
             <Input
@@ -96,7 +103,6 @@ export default function WorkoutEntry() {
             )}
           </div>
 
-          {/* Workout Type */}
           <div>
             <label className="block font-medium mb-1 text-zinc-300">Workout Type</label>
             <Select onValueChange={setWorkoutType} value={workoutType}>
@@ -105,15 +111,12 @@ export default function WorkoutEntry() {
               </SelectTrigger>
               <SelectContent>
                 {workoutOptions.map(type => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Exercise and Sets */}
           {workoutType && (
             <div className="space-y-4">
               <div>
@@ -167,7 +170,41 @@ export default function WorkoutEntry() {
             </div>
           )}
 
-          {/* Notes */}
+          {/* Cardio Fields */}
+          <div className="space-y-2">
+            <label className="inline-flex items-center text-zinc-300 font-medium">
+              <input
+                type="checkbox"
+                checked={includeCardio}
+                onChange={() => setIncludeCardio(!includeCardio)}
+                className="mr-2"
+              />
+              🏃 Include Cardio
+            </label>
+            {includeCardio && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input
+                  value={incline}
+                  onChange={(e) => setIncline(e.target.value)}
+                  placeholder="Incline"
+                  className="bg-zinc-700 border-zinc-600 text-white"
+                />
+                <Input
+                  value={speed}
+                  onChange={(e) => setSpeed(e.target.value)}
+                  placeholder="Speed (mph)"
+                  className="bg-zinc-700 border-zinc-600 text-white"
+                />
+                <Input
+                  value={cardioTime}
+                  onChange={(e) => setCardioTime(e.target.value)}
+                  placeholder="Time (mins)"
+                  className="bg-zinc-700 border-zinc-600 text-white"
+                />
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block font-medium mb-1 text-zinc-300">Notes</label>
             <Textarea
@@ -178,7 +215,6 @@ export default function WorkoutEntry() {
             />
           </div>
 
-          {/* Save Workout */}
           <div className="flex justify-center">
             <button
               onClick={saveEntry}
