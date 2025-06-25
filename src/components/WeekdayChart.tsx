@@ -83,11 +83,11 @@ export default function WeekdayChart({ entries }: { entries: any[] }) {
           <XAxis dataKey="day" stroke="#e4e4e7" />
           <YAxis stroke="#e4e4e7" allowDecimals={false} />
           <Tooltip
-            contentStyle={{ backgroundColor: '#2a2737', borderColor: '#444' }}
+            contentStyle={{ backgroundColor: 'red', borderColor: '#444' }}
             labelStyle={{ color: '#e0e7ff', fontWeight: 'bold' }}
             itemStyle={{ color: '#d8b4fe' }}
             />
-          <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]}   activeBar={{ fill: '#c084fc' }}          />
+          <Bar dataKey="count" fill="green" radius={[4, 4, 0, 0]}   activeBar={{ fill: '#c084fc' }}          />
         </BarChart>
       </ResponsiveContainer>
     </div>
