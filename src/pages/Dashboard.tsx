@@ -10,6 +10,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import WeekdayChart from '@/components/WeekdayChart';
 import { format } from 'date-fns';
 import Slider from 'react-slick';
+import WeightChart from '@/components/WeightChart';
 
 interface WorkoutEntry {
   dateDay: string;
@@ -178,6 +179,10 @@ export default function Dashboard() {
         
           <WeekdayChart entries={entries} />
         </div>
+
+        <div className="mt-6">
+          <WeightChart entries={entries} />
+      </div>
       </div>
     </div>
   );

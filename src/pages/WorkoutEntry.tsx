@@ -28,6 +28,9 @@ export default function WorkoutEntry() {
   const [speed, setSpeed] = useState('');
   const [cardioTime, setCardioTime] = useState('');
   const entriesEndRef = useRef(null);
+  const [weight, setWeight] = useState('');
+
+   
 
   const addExercise = () => {
     if (exerciseName.trim() !== '') {
@@ -40,6 +43,7 @@ export default function WorkoutEntry() {
   const saveEntry = async () => {
     if (workoutType && exerciseList.length > 0) {
       const day = format(date, 'EEEE');
+      
       const newEntry = {
         dateDay: `${format(date, 'yyyy-MM-dd')} - ${day}`,
         workoutType,
@@ -54,6 +58,7 @@ export default function WorkoutEntry() {
       const localEntries = JSON.parse(localStorage.getItem('gymEntries') || '[]');
       localStorage.setItem('gymEntries', JSON.stringify([...localEntries, newEntry]));
 
+      
       setWorkoutType('');
       setExerciseList([]);
       setNotes('');
@@ -63,8 +68,10 @@ export default function WorkoutEntry() {
       setCardioTime('');
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
+      setWeight('');
     }
   };
+  
 
   return (
     <div className="space-y-8">
@@ -101,6 +108,17 @@ export default function WorkoutEntry() {
                 <Calendar value={date} onChange={(d: any) => { setDate(d); setShowCalendar(false); }} />
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="block font-medium mb-1 text-zinc-300">Today's Weight (kg)</label>
+            <Input
+              type="number"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              placeholder="e.g., 102"
+              className="bg-zinc-700 border-zinc-600 text-white"
+            />
           </div>
 
           <div>
