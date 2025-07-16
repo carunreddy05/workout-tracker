@@ -46,6 +46,7 @@ export default function WorkoutEntry() {
       
       const newEntry = {
         dateDay: `${format(date, 'yyyy-MM-dd')} - ${day}`,
+        weight: weight ? parseFloat(weight) : 0,
         workoutType,
         exercises: exerciseList,
         notes,
