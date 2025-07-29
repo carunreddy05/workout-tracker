@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Calendar } from 'react-calendar';
@@ -11,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/firebase';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
 import BackHeader from '@/components/BackHeader';
+import axios from "axios";
 
 const workoutOptions = ['Chest/Triceps', 'Back/Biceps', 'Shoulders', 'Legs', 'Core'];
 
@@ -27,10 +27,60 @@ export default function WorkoutEntry() {
   const [incline, setIncline] = useState('');
   const [speed, setSpeed] = useState('');
   const [cardioTime, setCardioTime] = useState('');
-  const entriesEndRef = useRef(null);
   const [weight, setWeight] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<any>(null);
+  const entriesEndRef = useRef(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-   
+  // Debounce timer
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch suggestions when exerciseName changes
+  useEffect(() => {
+    if (!exerciseName.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setLoadingSuggestions(true);
+      try {
+        const res = await axios.get(
+          `https://wger.de/api/v2/exercise/search/?language=english&term=${encodeURIComponent(exerciseName)}`
+        );
+        // Store the full suggestion object
+        setSuggestions(
+          res.data.suggestions.filter((item: any) => !!item.value)
+        );
+      } catch {
+        setSuggestions([]);
+      }
+      setLoadingSuggestions(false);
+    }, 400);
+    // Cleanup
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [exerciseName]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setSuggestions([]);
+      }
+    }
+    if (suggestions.length > 0) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [suggestions]);
 
   const addExercise = () => {
     if (exerciseName.trim() !== '') {
@@ -140,12 +190,42 @@ export default function WorkoutEntry() {
             <div className="space-y-4">
               <div>
                 <label className="block font-medium mb-1 text-zinc-300">Exercise Name</label>
-                <Input
-                  value={exerciseName}
-                  onChange={(e) => setExerciseName(e.target.value)}
-                  placeholder="e.g., Bench Press"
-                  className="bg-zinc-700 border-zinc-600 text-white"
-                />
+                <div ref={dropdownRef}>
+                  <Input
+                    value={exerciseName}
+                    onChange={(e) => setExerciseName(e.target.value)}
+                    placeholder="e.g., Bench Press"
+                    className="bg-zinc-700 border-zinc-600 text-white"
+                    autoComplete="off"
+                  />
+                  {loadingSuggestions && (
+                    <div className="text-xs text-zinc-400 mt-1">Loading...</div>
+                  )}
+                  {suggestions.length > 0 && (
+                    <ul className="bg-zinc-800 border border-zinc-600 rounded mt-1 max-h-40 overflow-y-auto">
+                      {suggestions.map((item, idx) => (
+                        <li
+                          key={idx}
+                          className="px-3 py-2 hover:bg-zinc-700 cursor-pointer text-white flex items-center"
+                          onClick={() => {
+                            setExerciseName(item.value);
+                            setSelectedExercise(item.data);
+                            setSuggestions([]);
+                          }}
+                        >
+                          {item.data.image_thumbnail && (
+                            <img
+                              src={`https://wger.de${item.data.image_thumbnail}`}
+                              alt={item.value}
+                              className="w-6 h-6 mr-2 rounded"
+                            />
+                          )}
+                          {item.value}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -184,6 +264,17 @@ export default function WorkoutEntry() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {selectedExercise && selectedExercise.image_thumbnail && (
+                <div className="mt-2 flex items-center">
+                  <img
+                    src={`https://wger.de${selectedExercise.image_thumbnail}`}
+                    alt={selectedExercise.name}
+                    className="w-12 h-12 rounded mr-2 border border-zinc-600"
+                  />
+                  <span className="text-zinc-300">{selectedExercise.name}</span>
                 </div>
               )}
             </div>
