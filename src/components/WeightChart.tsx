@@ -1,9 +1,9 @@
 // src/components/WeightChart.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Dot
 } from 'recharts';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isAfter, subDays, startOfYear } from 'date-fns';
 
 interface WeightEntry {
   dateDay: string;
@@ -74,11 +74,30 @@ export default function WeightChart({ entries }: Props) {
 
   const color = isLosingWeight ? '#ef4444' : '#22c55e'; // red if losing, green otherwise
 
+  const [filter, setFilter] = useState<"7d" | "30d" | "ytd" | "all">("all");
+
+  // Filter logic
+  const today = new Date();
+  let filteredData = filledData;
+  if (filter === "7d") {
+    filteredData = filledData.filter(d => isAfter(parseISO(d.date), subDays(today, 7)));
+  } else if (filter === "30d") {
+    filteredData = filledData.filter(d => isAfter(parseISO(d.date), subDays(today, 30)));
+  } else if (filter === "ytd") {
+    filteredData = filledData.filter(d => isAfter(parseISO(d.date), startOfYear(today)));
+  }
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg shadow mt-6">
       <h3 className="text-lg font-bold text-pink-400 mb-4">📉 Weekly Weight Progress</h3>
+      <div className="mb-2 flex gap-2">
+        <button onClick={() => setFilter("7d")} className={`px-2 py-1 rounded ${filter === "7d" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>Last 7 Days</button>
+        <button onClick={() => setFilter("30d")} className={`px-2 py-1 rounded ${filter === "30d" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>Last 30 Days</button>
+        <button onClick={() => setFilter("ytd")} className={`px-2 py-1 rounded ${filter === "ytd" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>YTD</button>
+        <button onClick={() => setFilter("all")} className={`px-2 py-1 rounded ${filter === "all" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>All</button>
+      </div>
       <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={filledData}>
+        <LineChart data={filteredData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="date"
