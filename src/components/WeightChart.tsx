@@ -1,5 +1,5 @@
 // src/components/WeightChart.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Dot
 } from 'recharts';
@@ -77,6 +77,36 @@ export default function WeightChart({ entries }: Props) {
   const [filter, setFilter] = useState<"7d" | "30d" | "ytd" | "all">("all");
   const [units, setUnits] = useState<'kg' | 'lb'>('kg');
   const KG_TO_LB = 2.2046226218;
+  // tick step (granularity) shown on the Y axis — persisted
+  const defaultStep = units === 'kg' ? 0.2 : 0.5;
+  const [tickStep, setTickStep] = useState<number>(defaultStep);
+
+  // load saved prefs on mount
+  useEffect(() => {
+    try {
+      const savedUnits = localStorage.getItem('wt_units');
+      const savedStep = localStorage.getItem('wt_tick_step');
+      if (savedUnits === 'kg' || savedUnits === 'lb') {
+        setUnits(savedUnits);
+      }
+      if (savedStep) {
+        const v = parseFloat(savedStep);
+        if (!Number.isNaN(v) && v > 0) setTickStep(v);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  // persist when units or tickStep changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('wt_units', units);
+      localStorage.setItem('wt_tick_step', String(tickStep));
+    } catch (e) {
+      // ignore
+    }
+  }, [units, tickStep]);
 
   // Filter logic
   const today = new Date();
@@ -98,8 +128,12 @@ export default function WeightChart({ entries }: Props) {
   const displayWeights = displayData.map(d => d.weight).filter((w): w is number => typeof w === 'number');
   const displayMin = displayWeights.length > 0 ? Math.floor(Math.min(...displayWeights) * 10) / 10 : (units === 'kg' ? 95 : +(95 * KG_TO_LB));
   const displayMax = displayWeights.length > 0 ? Math.ceil(Math.max(...displayWeights) * 10) / 10 : (units === 'kg' ? 103 : +(103 * KG_TO_LB));
-  const step = units === 'kg' ? 0.2 : 0.5;
-  const ticks = Array.from({ length: Math.round((displayMax - displayMin) / step) + 1 }, (_, i) => +(displayMin + i * step).toFixed(1));
+  // use persisted tickStep; guard against zero/negative
+  const safeStep = tickStep > 0 ? tickStep : (units === 'kg' ? 0.2 : 0.5);
+  const ticks = Array.from({ length: Math.max(1, Math.round((displayMax - displayMin) / safeStep) + 1) }, (_, i) => {
+    const val = +(displayMin + i * safeStep);
+    return Number(val.toFixed(1));
+  });
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg shadow mt-6">
@@ -124,6 +158,29 @@ export default function WeightChart({ entries }: Props) {
           >
             lb
           </button>
+
+          <div className="ml-2 flex items-center gap-1 text-sm text-zinc-300">
+            <label className="mr-1">Tick:</label>
+            <select
+              value={tickStep}
+              onChange={(e) => setTickStep(parseFloat(e.target.value))}
+              className="bg-zinc-800 text-zinc-200 px-2 py-1 rounded"
+            >
+              {units === 'kg' ? (
+                <>
+                  <option value={0.1}>0.1 kg</option>
+                  <option value={0.2}>0.2 kg</option>
+                  <option value={0.5}>0.5 kg</option>
+                </>
+              ) : (
+                <>
+                  <option value={0.25}>0.25 lb</option>
+                  <option value={0.5}>0.5 lb</option>
+                  <option value={1}>1 lb</option>
+                </>
+              )}
+            </select>
+          </div>
         </div>
       </div>
       <ResponsiveContainer width="100%" height={320}>
