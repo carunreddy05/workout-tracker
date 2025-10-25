@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import WorkoutEntry from './pages/WorkoutEntry';
 import WorkoutHistory from './pages/WorkoutHistory';
 import WorkoutDetail from './pages/WorkoutDetail';
+import GannNumbers from './pages/GannNumbers';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="/entry" element={<WorkoutEntry />} />
           <Route path="/history" element={<WorkoutHistory />} />
           <Route path="/details/:dateDay" element={<WorkoutDetail />} />
+          <Route path="/gann" element={<GannNumbers />} />
 
           {/* 🔥 Catch-all route: redirects unknown paths to dashboard */}
           <Route path="*" element={<Navigate to="/" replace />} />
