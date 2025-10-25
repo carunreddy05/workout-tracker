@@ -78,7 +78,7 @@ export default function GannNumbers() {
 
   return (
     <div className="space-y-6">
-      <BackHeader title="🔢 GANN numbers" />
+      <BackHeader title="GANN THEORY NUMBERS" />
       <div className="p-6 bg-zinc-800 border border-zinc-700 rounded">
         <p className="text-sm text-zinc-300 mb-4">
           Gann method (quick): take the square root of the price, move ±1, ±2, ... from that root,
@@ -124,33 +124,45 @@ export default function GannNumbers() {
                   </tr>
                 </thead>
                 <tbody>
-                  {output.above.map((a, i) => (
-                    <tr key={`a-${i}`} className="hover:bg-zinc-700">
-                      <td className="py-1 text-emerald-300">Above</td>
+                  {[...output.above].slice().reverse().map((a, i) => (
+                    <tr
+                      key={`a-${a.root}-${i}`}
+                      className="hover:bg-zinc-800/60"
+                      aria-label={`Above level ${a.root}`}
+                    >
+                      <td className="py-1 text-emerald-400 font-medium">Above</td>
                       <td className="py-1">{a.root}</td>
-                      <td className="py-1">{fmt(a.level)}</td>
-                      <td className="py-1 text-emerald-200">+{fmt(a.dist)}</td>
-                      <td className="py-1 text-zinc-400">Resistance</td>
+                      <td className="py-1">
+                        <span className="inline-block px-3 py-1 rounded-md bg-emerald-800/30 text-emerald-200">{fmt(a.level)}</span>
+                      </td>
+                      <td className="py-1 text-emerald-300">+{fmt(a.dist)}</td>
+                      <td className="py-1 text-emerald-200">Resistance</td>
                     </tr>
                   ))}
                   {/* base level (current integer root) */}
                   <tr
                     aria-current="true"
-                    className="bg-zinc-700/60 ring-1 ring-yellow-500/30 rounded-md my-1"
+                    className="bg-yellow-600/10 ring-2 ring-yellow-400/40 rounded-md my-1"
                   >
-                    <td className="py-2 text-yellow-300 font-semibold">Base</td>
-                    <td className="py-2 font-semibold">{output.baseRoot}</td>
-                    <td className="py-2 font-semibold">{fmt(output.baseLevel ?? Math.pow(output.baseRoot, 2))}</td>
-                    <td className="py-2 font-semibold">{fmt((output.baseLevel ?? Math.pow(output.baseRoot, 2)) - output.price)}</td>
+                    <td className="py-2 text-yellow-300 font-bold">Base</td>
+                    <td className="py-2 font-semibold text-yellow-100">{output.baseRoot}</td>
+                    <td className="py-2 font-semibold text-yellow-100">{fmt(output.baseLevel ?? Math.pow(output.baseRoot, 2))}</td>
+                    <td className="py-2 font-semibold text-yellow-200">{fmt((output.baseLevel ?? Math.pow(output.baseRoot, 2)) - output.price)}</td>
                     <td className="py-2 text-zinc-300">Current / Base level</td>
                   </tr>
                   {output.below.map((b, i) => (
-                    <tr key={`b-${i}`} className="hover:bg-zinc-700">
-                      <td className="py-1 text-rose-400">Below</td>
+                    <tr
+                      key={`b-${i}`}
+                      className="hover:bg-zinc-800/60"
+                      aria-label={`Below level ${b.root}`}
+                    >
+                      <td className="py-1 text-rose-400 font-medium">Below</td>
                       <td className="py-1">{b.root}</td>
-                      <td className="py-1">{fmt(b.level)}</td>
-                      <td className="py-1 text-rose-200">{fmt(b.dist)}</td>
-                      <td className="py-1 text-zinc-400">Support</td>
+                      <td className="py-1">
+                        <span className="inline-block px-3 py-1 rounded-md bg-rose-800/30 text-rose-200">{fmt(b.level)}</span>
+                      </td>
+                      <td className="py-1 text-rose-300">{fmt(b.dist)}</td>
+                      <td className="py-1 text-rose-200">Support</td>
                     </tr>
                   ))}
                 </tbody>

@@ -150,7 +150,7 @@ export default function Dashboard() {
           to="/gann"
           className="bg-gradient-to-br from-pink-600 to-pink-800 p-6 rounded-xl shadow-lg hover:brightness-110 transition block border border-pink-400"
         >
-          <h3 className="text-lg font-bold mb-2 text-white">🔢 GANN numbers</h3>
+          <h3 className="text-lg font-bold mb-2 text-white">GANN THEORY NUMBERS</h3>
           <p className="text-sm text-pink-100">Quickly generate GANN numbers from a stock price.</p>
         </Link>
 

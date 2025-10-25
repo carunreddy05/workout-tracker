@@ -9,6 +9,7 @@ export default function Header() {
   const links = [
     { name: 'Dashboard', path: '/' },
     { name: 'Add Workout', path: '/entry' },
+    { name: 'GANN THEORY', path: '/gann' },
     { name: 'Workout History', path: '/history' },
   ];
 
@@ -26,28 +27,46 @@ export default function Header() {
         >
           ☰
         </button>
-        <nav className="hidden md:flex space-x-6 text-sm">
-          {links.map(link => (
-            <Link key={link.name} to={link.path} className="hover:text-indigo-300">
-              {link.name}
-            </Link>
-          ))}
+        <nav className="hidden md:flex space-x-6 text-sm items-center">
+          {links.map(link => {
+            const isGann = link.name.toLowerCase().includes('gann');
+            return (
+              <Link
+                key={link.name}
+                to={link.path}
+                className={
+                  isGann
+                    ? 'px-3 py-1 rounded-md bg-gradient-to-br from-pink-600 to-pink-800 text-white font-semibold uppercase text-xs shadow-sm hover:brightness-95'
+                    : 'hover:text-indigo-300'
+                }
+              >
+                {link.name}
+              </Link>
+            );
+          })}
         </nav>
       </div>
 
       {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden bg-zinc-800 px-4 pb-4 space-y-2">
-          {links.map(link => (
-            <Link
-              key={link.name}
-              to={link.path}
-              onClick={() => setMenuOpen(false)}
-              className="block text-sm text-white hover:text-indigo-400"
-            >
-              {link.name}
-            </Link>
-          ))}
+          {links.map(link => {
+            const isGann = link.name.toLowerCase().includes('gann');
+            return (
+              <Link
+                key={link.name}
+                to={link.path}
+                onClick={() => setMenuOpen(false)}
+                className={
+                  isGann
+                    ? 'block text-sm text-white px-3 py-2 rounded bg-pink-700/80 font-semibold uppercase'
+                    : 'block text-sm text-white hover:text-indigo-400'
+                }
+              >
+                {link.name}
+              </Link>
+            );
+          })}
         </div>
       )}
     </header>
