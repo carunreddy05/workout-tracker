@@ -75,6 +75,8 @@ export default function WeightChart({ entries }: Props) {
   const color = isLosingWeight ? '#ef4444' : '#22c55e'; // red if losing, green otherwise
 
   const [filter, setFilter] = useState<"7d" | "30d" | "ytd" | "all">("all");
+  const [units, setUnits] = useState<'kg' | 'lb'>('kg');
+  const KG_TO_LB = 2.2046226218;
 
   // Filter logic
   const today = new Date();
@@ -87,6 +89,18 @@ export default function WeightChart({ entries }: Props) {
     filteredData = filledData.filter(d => isAfter(parseISO(d.date), startOfYear(today)));
   }
 
+  // displayData converts weights to selected units for rendering (does not mutate original)
+  const displayData = filteredData.map(d => ({
+    ...d,
+    weight: typeof d.weight === 'number' ? (units === 'kg' ? d.weight : +(d.weight * KG_TO_LB)) : d.weight,
+  }));
+
+  const displayWeights = displayData.map(d => d.weight).filter((w): w is number => typeof w === 'number');
+  const displayMin = displayWeights.length > 0 ? Math.floor(Math.min(...displayWeights) * 10) / 10 : (units === 'kg' ? 95 : +(95 * KG_TO_LB));
+  const displayMax = displayWeights.length > 0 ? Math.ceil(Math.max(...displayWeights) * 10) / 10 : (units === 'kg' ? 103 : +(103 * KG_TO_LB));
+  const step = units === 'kg' ? 0.2 : 0.5;
+  const ticks = Array.from({ length: Math.round((displayMax - displayMin) / step) + 1 }, (_, i) => +(displayMin + i * step).toFixed(1));
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg shadow mt-6">
       <h3 className="text-lg font-bold text-pink-400 mb-4">📉 Weekly Weight Progress</h3>
@@ -95,9 +109,25 @@ export default function WeightChart({ entries }: Props) {
         <button onClick={() => setFilter("30d")} className={`px-2 py-1 rounded ${filter === "30d" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>Last 30 Days</button>
         <button onClick={() => setFilter("ytd")} className={`px-2 py-1 rounded ${filter === "ytd" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>YTD</button>
         <button onClick={() => setFilter("all")} className={`px-2 py-1 rounded ${filter === "all" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>All</button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setUnits('kg')}
+            className={`px-3 py-1 rounded ${units === 'kg' ? 'bg-pink-400 text-white' : 'bg-zinc-800 text-zinc-300'}`}
+            aria-pressed={units === 'kg'}
+          >
+            kg
+          </button>
+          <button
+            onClick={() => setUnits('lb')}
+            className={`px-3 py-1 rounded ${units === 'lb' ? 'bg-pink-400 text-white' : 'bg-zinc-800 text-zinc-300'}`}
+            aria-pressed={units === 'lb'}
+          >
+            lb
+          </button>
+        </div>
       </div>
       <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={filteredData}>
+        <LineChart data={displayData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="date"
@@ -105,14 +135,14 @@ export default function WeightChart({ entries }: Props) {
             tick={{ fill: '#ccc', fontSize: 12 }}
           />
           <YAxis
-            domain={[98, 103]}
+            domain={[displayMin, displayMax]}
             tick={{ fill: '#ccc', fontSize: 12 }}
             allowDecimals={true}
-            ticks={Array.from({ length: Math.round((103 - 98) / 0.2) + 1 }, (_, i) => (98 + i * 0.2).toFixed(1)).map(Number)}
-            tickFormatter={(v) => `${v.toFixed(1)} kg`}
+            ticks={ticks}
+            tickFormatter={(v) => `${(v as number).toFixed(1)} ${units}`}
           />
           <Tooltip
-            formatter={(value: any) => `${value} kg`}
+            formatter={(value: any) => `${typeof value === 'number' ? value.toFixed(1) : value} ${units}`}
             labelFormatter={(label) => format(parseISO(label), 'eeee, MMM d')}
             contentStyle={{ backgroundColor: '#1f1f1f', borderColor: '#333' }}
           />
