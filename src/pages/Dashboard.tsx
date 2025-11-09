@@ -8,6 +8,7 @@ import '@/styles/calendar-custom.css';
 import { db } from '@/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import WeekdayChart from '@/components/WeekdayChart';
+import KpiCard from '@/components/KpiCard';
 import { format } from 'date-fns';
 import Slider from 'react-slick';
 import WeightChart from '@/components/WeightChart';
@@ -21,15 +22,14 @@ interface WorkoutEntry {
 }
 
 const quotes = [
-  "Train insane or remain the same.",
+  "The only bad workout is the one that didn't happen.",
   "No pain, no gain.",
   "Push yourself, because no one else is going to do it for you.",
   "The body achieves what the mind believes.",
-  "Sweat is fat crying.",
   "Success starts with self-discipline.",
-  "Don’t wish for a good body. Work for it.",
+  "Don't wish for a good body, work for it.",
   "It never gets easier, you just get stronger.",
-  "Excuses don’t burn calories.",
+  "Excuses don't burn calories.",
   "A one hour workout is 4% of your day. No excuses."
 ];
 
@@ -90,47 +90,87 @@ export default function Dashboard() {
   const selectedWorkout = getWorkoutInfo(selectedDate);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Welcome Section */}
+      <div className="mt-4 space-y-1">
+        <h1 className="text-xl sm:text-2xl font-medium text-white">Welcome back, <span className="font-semibold">Carun</span>!</h1>
+      </div>
 
-       {/* Welcome & Heading Section */}
-    <div className="mt-4 space-y-1 text-center sm:text-left">
-      <h1 className="text-lg sm:text-xl font-medium text-amber-300">👋 Welcome back, <span className="font-semibold text-white">Carun</span>!</h1>
-      {/* <h1 className="text-3xl font-extrabold text-indigo-400 mt-1 tracking-tight">🏠 Dashboard</h1> */}
-    </div>
+      {/* Add Workout Button */}
+      <Link 
+        to="/entry" 
+        className="block w-full bg-[#00ff00] hover:bg-[#00ff00]/90 text-black font-semibold text-lg rounded-2xl py-4 px-6 text-center transition-colors relative overflow-hidden"
+        style={{ 
+          boxShadow: '0 0 30px rgba(0,255,0,0.3)',
+          textShadow: '0 0 5px rgba(255,255,255,0.3)'
+        }}
+      >
+        <span className="relative z-10 flex items-center justify-center gap-2">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Workout
+        </span>
+      </Link>
     
-       {/* 🔥 Random Workout Quote */}
-       <div className="w-full max-w-xl mx-auto px-2 bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 rounded-lg p-4 shadow-md text-center mb-4">
+      {/* Quote Section */}
+      <div className="w-full max-w-4xl mx-auto px-4 bg-black/90 rounded-[28px] mb-8 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[#00ff00]/5" />
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(90deg, rgba(0,255,0,0.05) 0%, rgba(0,255,0,0.02) 50%, transparent 100%)',
+            boxShadow: '0 0 40px rgba(0,255,0,0.15), inset 0 0 20px rgba(0,255,0,0.1)'
+          }}
+        />
         <Slider
           autoplay
           infinite
-          dots
-          speed={600}
-          autoplaySpeed={6000}
+          dots={false}
+          speed={800}
+          autoplaySpeed={8000}
           arrows={false}
+          className="py-6"
         >
           {quotes.map((quote, index) => (
-            <div key={index}>
-              <p className="text-lg font-semibold italic text-white">{`"${quote}"`}</p>
+            <div key={index} className="px-4">
+              <p 
+                className="text-xl sm:text-2xl font-semibold text-[#00ff00] tracking-wide" 
+                style={{ textShadow: '0 0 20px rgba(0,255,0,0.5)' }}
+              >
+                "{quote}"
+              </p>
             </div>
           ))}
         </Slider>
       </div>
 
-   
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="flex items-center gap-2 bg-gradient-to-r from-zinc-800 via-zinc-700 to-zinc-800 border border-zinc-600 rounded-full px-4 py-2 text-sm text-white shadow hover:scale-[1.03] transition">
-          📅 <span className="font-semibold">{stats.days.size}</span>
-          <span className="text-zinc-300">days logged</span>
-        </div>
-        
-        <div className="flex items-center gap-2 bg-gradient-to-r from-green-700 via-emerald-600 to-green-700 border border-green-600 rounded-full px-4 py-2 text-sm text-white shadow hover:scale-[1.03] transition">
-          🏋️ <span className="font-semibold">{stats.total}</span>
-          <span className="text-emerald-100">workouts</span>
-        </div>
-        
-        <div className="flex items-center gap-2 bg-gradient-to-r from-pink-700 via-fuchsia-600 to-pink-700 border border-pink-600 rounded-full px-4 py-2 text-sm text-white shadow hover:scale-[1.03] transition">
-          🏃 <span className="font-semibold">{stats.cardioDays.size}</span>
-          <span className="text-pink-100">cardio days</span>
+      {/* KPI Cards */}
+      <div className="w-full max-w-7xl mx-auto bg-transparent rounded-[28px] p-4 mb-8 flex flex-col items-center justify-center py-8">
+        <div className="grid grid-cols-3 gap-8 sm:gap-12 lg:gap-16 mb-0 items-stretch justify-items-stretch">
+          <div className="flex items-stretch">
+            <KpiCard
+              title="Days logged"
+              value={stats.days.size}
+              layout="square"
+            />
+          </div>
+
+          <div className="flex items-stretch">
+            <KpiCard
+              title="Workouts"
+              value={stats.total}
+              layout="square"
+            />
+          </div>
+
+          <div className="flex items-stretch">
+            <KpiCard
+              title="Cardio days"
+              value={stats.cardioDays.size}
+              layout="square"
+            />
+          </div>
         </div>
       </div>
 
@@ -168,7 +208,7 @@ export default function Dashboard() {
           <h3 className="text-lg font-bold text-indigo-300 mb-2">📅 Workout Calendar</h3>
           <div className="bg-zinc-900 p-4 rounded-lg shadow-md w-full max-w-full">
             <Calendar
-              onChange={handleDateClick}
+              onChange={(value: any) => handleDateClick(value as Date)}
               value={selectedDate}
               tileContent={({ date, view }) =>
                 view === 'month' && getWorkoutInfo(date) ? (
