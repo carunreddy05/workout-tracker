@@ -1,9 +1,9 @@
 // src/components/WeightChart.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Dot
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
-import { format, parseISO, isAfter, subDays, startOfYear } from 'date-fns';
+import { format, subDays, subMonths } from 'date-fns';
 
 interface WeightEntry {
   dateDay: string;
@@ -14,204 +14,122 @@ interface Props {
   entries: WeightEntry[];
 }
 
+type TimeRange = '1W' | '1M' | '6M';
+
+interface ChartDataPoint {
+  date: string;
+  weight: number | undefined;
+}
+
 export default function WeightChart({ entries }: Props) {
-  // Step 1: Convert entries to daily weight, filling gaps
-  const sorted = [...entries]
-    .filter(e => e.weight !== undefined)
-    .sort((a, b) => (a.dateDay > b.dateDay ? 1 : -1));
+  const [timeRange, setTimeRange] = useState<TimeRange>('1W');
 
-  console.log('WeightChart entries:', entries);
-  console.log('First entry:', entries[0]);
-
-  // Step back: ensure lastWeight is initialized to first valid entry in entries
-  let lastWeight: number | undefined = undefined;
-  if (Array.isArray(entries)) {
-    for (const e of entries) {
-      if (typeof e.weight === 'number' && !isNaN(e.weight) && e.weight > 0) {
-        lastWeight = e.weight;
-        break;
-      }
-    }
-  }
   // Helper to extract just the date part from dateDay
   const getDate = (dateDay: string) => dateDay.split(' ')[0];
-  const dateWeightMap: Record<string, number | undefined> = {};
-  if (Array.isArray(entries)) {
-    let lastWeight: number | undefined = undefined;
-    for (const e of entries) {
-      const entryWeight = typeof e.weight === 'number' && !isNaN(e.weight) && e.weight > 0 ? e.weight : undefined;
-      if (entryWeight !== undefined) {
-        lastWeight = entryWeight;
+
+  // Process and prepare data
+  const now = new Date();
+  const filterDate = {
+    '1W': subDays(now, 7),
+    '1M': subMonths(now, 1),
+    '6M': subMonths(now, 6)
+  }[timeRange];
+
+  // Sort entries and fill in gaps
+  const chartData: ChartDataPoint[] = entries
+    .sort((a, b) => (a.dateDay > b.dateDay ? 1 : -1))
+    .reduce<ChartDataPoint[]>((acc, entry) => {
+      const date = getDate(entry.dateDay);
+      if (new Date(date) >= filterDate) {
+        acc.push({
+          date,
+          weight: entry.weight
+        });
       }
-      dateWeightMap[getDate(e.dateDay)] = lastWeight;
-    }
-  }
-  console.log('dateWeightMap:', dateWeightMap);
+      return acc;
+    }, []);
 
-  const allDates = Array.isArray(entries)
-    ? Array.from(new Set(entries.map((e: any) => getDate(e.dateDay)))).sort()
-    : [];
-
-  const filledData = allDates.map(dateStr => ({
-    date: dateStr,
-    weight: dateWeightMap[dateStr],
-  }));
-
-  console.log('Filled data for chart:', filledData);
-
-  const weights = filledData.map(d => d.weight).filter((w): w is number => w !== null);
-
-  const minWeight = weights.length > 0 ? Math.floor(Math.min(...weights) * 10) / 10 : 95;
-  const maxWeight = weights.length > 0 ? Math.ceil(Math.max(...weights) * 10) / 10 : 103;
-
-  const firstWeight = filledData[0]?.weight;
-  const chartLastWeight = filledData[filledData.length - 1]?.weight;
-  const isLosingWeight =
-    filledData.length > 1 &&
-    typeof firstWeight === 'number' &&
-    typeof chartLastWeight === 'number' &&
-    firstWeight > chartLastWeight;
-
-  const color = isLosingWeight ? '#ef4444' : '#22c55e'; // red if losing, green otherwise
-
-  const [filter, setFilter] = useState<"7d" | "30d" | "ytd" | "all">("all");
-  const [units, setUnits] = useState<'kg' | 'lb'>('kg');
-  const KG_TO_LB = 2.2046226218;
-  // tick step (granularity) shown on the Y axis — persisted
-  const defaultStep = units === 'kg' ? 0.2 : 0.5;
-  const [tickStep, setTickStep] = useState<number>(defaultStep);
-
-  // load saved prefs on mount
-  useEffect(() => {
-    try {
-      const savedUnits = localStorage.getItem('wt_units');
-      const savedStep = localStorage.getItem('wt_tick_step');
-      if (savedUnits === 'kg' || savedUnits === 'lb') {
-        setUnits(savedUnits);
-      }
-      if (savedStep) {
-        const v = parseFloat(savedStep);
-        if (!Number.isNaN(v) && v > 0) setTickStep(v);
-      }
-    } catch (e) {
-      // ignore
-    }
-  }, []);
-
-  // persist when units or tickStep changes
-  useEffect(() => {
-    try {
-      localStorage.setItem('wt_units', units);
-      localStorage.setItem('wt_tick_step', String(tickStep));
-    } catch (e) {
-      // ignore
-    }
-  }, [units, tickStep]);
-
-  // Filter logic
-  const today = new Date();
-  let filteredData = filledData;
-  if (filter === "7d") {
-    filteredData = filledData.filter(d => isAfter(parseISO(d.date), subDays(today, 7)));
-  } else if (filter === "30d") {
-    filteredData = filledData.filter(d => isAfter(parseISO(d.date), subDays(today, 30)));
-  } else if (filter === "ytd") {
-    filteredData = filledData.filter(d => isAfter(parseISO(d.date), startOfYear(today)));
-  }
-
-  // displayData converts weights to selected units for rendering (does not mutate original)
-  const displayData = filteredData.map(d => ({
-    ...d,
-    weight: typeof d.weight === 'number' ? (units === 'kg' ? d.weight : +(d.weight * KG_TO_LB)) : d.weight,
-  }));
-
-  const displayWeights = displayData.map(d => d.weight).filter((w): w is number => typeof w === 'number');
-  const displayMin = displayWeights.length > 0 ? Math.floor(Math.min(...displayWeights) * 10) / 10 : (units === 'kg' ? 95 : +(95 * KG_TO_LB));
-  const displayMax = displayWeights.length > 0 ? Math.ceil(Math.max(...displayWeights) * 10) / 10 : (units === 'kg' ? 103 : +(103 * KG_TO_LB));
-  // use persisted tickStep; guard against zero/negative
-  const safeStep = tickStep > 0 ? tickStep : (units === 'kg' ? 0.2 : 0.5);
-  const ticks = Array.from({ length: Math.max(1, Math.round((displayMax - displayMin) / safeStep) + 1) }, (_, i) => {
-    const val = +(displayMin + i * safeStep);
-    return Number(val.toFixed(1));
-  });
+  // Calculate min/max for chart scaling
+  const weights = chartData
+    .map(d => d.weight)
+    .filter((w): w is number => w !== undefined);
+  
+  const minWeight = weights.length > 0 ? Math.floor(Math.min(...weights) - 1) : 60;
+  const maxWeight = weights.length > 0 ? Math.ceil(Math.max(...weights) + 1) : 100;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg shadow mt-6">
-      <h3 className="text-lg font-bold text-pink-400 mb-4">📉 Weekly Weight Progress</h3>
-      <div className="mb-2 flex gap-2">
-        <button onClick={() => setFilter("7d")} className={`px-2 py-1 rounded ${filter === "7d" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>Last 7 Days</button>
-        <button onClick={() => setFilter("30d")} className={`px-2 py-1 rounded ${filter === "30d" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>Last 30 Days</button>
-        <button onClick={() => setFilter("ytd")} className={`px-2 py-1 rounded ${filter === "ytd" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>YTD</button>
-        <button onClick={() => setFilter("all")} className={`px-2 py-1 rounded ${filter === "all" ? "bg-pink-400 text-white" : "bg-zinc-800 text-zinc-300"}`}>All</button>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => setUnits('kg')}
-            className={`px-3 py-1 rounded ${units === 'kg' ? 'bg-pink-400 text-white' : 'bg-zinc-800 text-zinc-300'}`}
-            aria-pressed={units === 'kg'}
-          >
-            kg
-          </button>
-          <button
-            onClick={() => setUnits('lb')}
-            className={`px-3 py-1 rounded ${units === 'lb' ? 'bg-pink-400 text-white' : 'bg-zinc-800 text-zinc-300'}`}
-            aria-pressed={units === 'lb'}
-          >
-            lb
-          </button>
-
-          <div className="ml-2 flex items-center gap-1 text-sm text-zinc-300">
-            <label className="mr-1">Tick:</label>
-            <select
-              value={tickStep}
-              onChange={(e) => setTickStep(parseFloat(e.target.value))}
-              className="bg-zinc-800 text-zinc-200 px-2 py-1 rounded"
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-medium text-white">Weekly Weight Progress</h2>
+        <div className="flex gap-2">
+          {(['1W', '1M', '6M'] as TimeRange[]).map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors
+                ${timeRange === range 
+                  ? 'bg-[#00ff00] text-black'
+                  : 'bg-[#1f2937] text-gray-400 hover:bg-[#374151]'
+                }`}
             >
-              {units === 'kg' ? (
-                <>
-                  <option value={0.1}>0.1 kg</option>
-                  <option value={0.2}>0.2 kg</option>
-                  <option value={0.5}>0.5 kg</option>
-                </>
-              ) : (
-                <>
-                  <option value={0.25}>0.25 lb</option>
-                  <option value={0.5}>0.5 lb</option>
-                  <option value={1}>1 lb</option>
-                </>
-              )}
-            </select>
-          </div>
+              {range}
+            </button>
+          ))}
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={320}>
-        <LineChart data={displayData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            dataKey="date"
-            tickFormatter={(date) => format(parseISO(date), 'MM-dd')}
-            tick={{ fill: '#ccc', fontSize: 12 }}
-          />
-          <YAxis
-            domain={[displayMin, displayMax]}
-            tick={{ fill: '#ccc', fontSize: 12 }}
-            allowDecimals={true}
-            ticks={ticks}
-            tickFormatter={(v) => `${(v as number).toFixed(1)} ${units}`}
-          />
-          <Tooltip
-            formatter={(value: any) => `${typeof value === 'number' ? value.toFixed(1) : value} ${units}`}
-            labelFormatter={(label) => format(parseISO(label), 'eeee, MMM d')}
-            contentStyle={{ backgroundColor: '#1f1f1f', borderColor: '#333' }}
-          />
-          <Line
-            type="monotone"
-            dataKey="weight"
-            stroke={color}
-            strokeWidth={3}
-            dot={<Dot r={4} stroke="#fff" fill={color} />}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+
+      <div className="bg-[#0B0B0F] rounded-[24px] p-6">
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart 
+              data={chartData} 
+              margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+            >
+              <CartesianGrid
+                stroke="#2D2D2D"
+                strokeDasharray="4 4"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="date"
+                stroke="#6B7280"
+                tickFormatter={(date) => format(new Date(date), 'MMM d')}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                domain={[minWeight, maxWeight]}
+                stroke="#6B7280"
+                tickCount={5}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#18181B',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#fff'
+                }}
+                labelFormatter={(date) => format(new Date(date), 'MMMM d, yyyy')}
+              />
+              <Line
+                type="monotone"
+                dataKey="weight"
+                stroke="#00ff00"
+                strokeWidth={2}
+                dot={false}
+                activeDot={{
+                  r: 4,
+                  fill: '#00ff00',
+                  stroke: '#00ff00',
+                  strokeWidth: 2
+                }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }
