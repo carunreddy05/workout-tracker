@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 const workoutOptions = ['Chest/Triceps', 'Back/Biceps', 'Shoulders', 'Legs', 'Core'];
 
@@ -25,6 +25,10 @@ export default function GymEntrySystem() {
   const [editingEntryId, setEditingEntryId] = useState<number | string | null>(null);
   const entriesEndRef = useRef(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | string | null>(null);
+  const [lastDeletedEntry, setLastDeletedEntry] = useState<any | null>(null);
+  const [showUndoBar, setShowUndoBar] = useState(false);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCloseModal = () => {
     setShowSuccessModal(false);
@@ -61,6 +65,14 @@ export default function GymEntrySystem() {
     localStorage.setItem('gymEntries', JSON.stringify(entries));
   }, [entries]);
 
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const addExercise = () => {
     if (exerciseName.trim() !== '') {
       setExerciseList(prev => [...prev, { name: exerciseName, sets }]);
@@ -93,9 +105,32 @@ export default function GymEntrySystem() {
   };
 
   const deleteEntry = async (id: string | number) => {
+    const entryToDelete = entries.find(entry => entry.id === id);
+    if (!entryToDelete) return;
     await deleteDoc(doc(db, "gymEntries", id as string));
     setEntries(prev => prev.filter(entry => entry.id !== id));
-    showToast('🗑️ Entry Deleted!');
+    setLastDeletedEntry(entryToDelete);
+    setShowUndoBar(true);
+
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+    }
+    undoTimeoutRef.current = setTimeout(() => {
+      setShowUndoBar(false);
+      setLastDeletedEntry(null);
+    }, 5000);
+  };
+
+  const handleUndoDelete = async () => {
+    if (!lastDeletedEntry) return;
+    const { id, ...data } = lastDeletedEntry;
+    await setDoc(doc(db, "gymEntries", id as string), data);
+    setEntries(prev => [...prev, lastDeletedEntry]);
+    setShowUndoBar(false);
+    setLastDeletedEntry(null);
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+    }
   };
 
   const saveEditedEntry = (id: string | number, updatedEntry: any) => {
@@ -121,6 +156,48 @@ export default function GymEntrySystem() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {confirmDeleteId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="mx-4 w-full max-w-xs rounded-3xl bg-[#111216] px-6 py-6 text-center shadow-2xl">
+            <h2 className="text-lg font-semibold text-white">Delete Workout?</h2>
+            <p className="mt-2 text-sm text-zinc-400">
+              Are you sure you want to delete this workout? This action cannot be undone.
+            </p>
+            <div className="mt-6 space-y-3">
+              <button
+                onClick={async () => {
+                  if (confirmDeleteId !== null) {
+                    await deleteEntry(confirmDeleteId);
+                  }
+                  setConfirmDeleteId(null);
+                }}
+                className="w-full rounded-full bg-rose-600 py-2 text-sm font-semibold text-white shadow hover:bg-rose-500"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="w-full rounded-full bg-[#181a1f] py-2 text-sm font-semibold text-zinc-100 hover:bg-[#20232a]"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showUndoBar && lastDeletedEntry && (
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center rounded-full bg-black/80 px-5 py-2 text-sm text-white shadow-lg">
+          <span>Workout deleted.</span>
+          <button
+            onClick={handleUndoDelete}
+            className="ml-4 text-xs font-semibold tracking-wide text-emerald-400 hover:text-emerald-300"
+          >
+            UNDO
+          </button>
+        </div>
+      )}
 
       <h1 className="text-4xl font-extrabold text-center mb-8 text-indigo-400 tracking-tight">
         🏋️ Gym Entry System
@@ -249,7 +326,7 @@ export default function GymEntrySystem() {
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => setEditingEntryId(entry.id)} className="text-green-400 hover:text-green-600 text-sm">✏️ Edit</button>
-                        <button onClick={() => deleteEntry(entry.id)} className="text-red-400 hover:text-red-600 text-sm">🗑️ Delete</button>
+                        <button onClick={() => setConfirmDeleteId(entry.id)} className="text-red-400 hover:text-red-600 text-sm">🗑️ Delete</button>
                       </div>
                     </div>
 

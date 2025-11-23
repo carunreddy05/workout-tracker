@@ -95,8 +95,16 @@ export default function WorkoutEntry() {
     setEntryError('');
     const imageThumb = selectedExercise?.image_thumbnail
       ? `https://wger.de${selectedExercise.image_thumbnail}`
-      : undefined;
-    setExerciseList(prev => [...prev, { name: exerciseName, image: imageThumb, sets: [...sets] }]);
+      : null;
+    setExerciseList(prev => [
+      ...prev,
+      {
+        name: exerciseName,
+        // Firestore does not allow undefined values
+        image: imageThumb,
+        sets: [...sets],
+      },
+    ]);
     setExerciseName('');
     setSelectedExercise(null);
     setSuggestions([]);
