@@ -11,7 +11,6 @@ export default function Header() {
   const links = [
     { name: 'Dashboard', path: '/' },
     { name: 'Add Workout', path: '/entry' },
-    { name: 'GANN THEORY', path: '/gann' },
     { name: 'Workout History', path: '/history' },
   ];
 
