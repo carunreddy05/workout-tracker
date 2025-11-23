@@ -98,7 +98,7 @@ export default function WorkoutHistory() {
         </div>
       )}
 
-      <BackHeader title="📋 Workout History" showHome={false} titleClassName="text-indigo-400" />
+      <BackHeader title="Workout History" showHome={false} titleClassName="text-emerald-300" />
 
       <div className="flex flex-wrap gap-3">
         <Select value={filterType} onValueChange={setFilterType}>

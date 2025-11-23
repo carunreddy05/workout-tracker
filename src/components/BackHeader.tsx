@@ -20,7 +20,7 @@ export default function BackHeader({ title, showHome = true, titleClassName }: P
         </Link>
       )}
       <h2 className={[
-        'text-3xl font-extrabold tracking-tight text-indigo-400',
+        'text-3xl font-extrabold tracking-tight text-emerald-3',
         titleClassName || ''
       ].join(' ')}>
         {title}
