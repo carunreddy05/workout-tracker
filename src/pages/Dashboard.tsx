@@ -1,5 +1,5 @@
 // src/pages/Dashboard.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -27,10 +27,18 @@ const periodLabels: Record<PeriodFilter, string> = {
   all: 'ALL TIME',
 };
 
-export default function Dashboard() {
+interface DashboardProps {
+  userAvatarUrl?: string;
+}
+
+export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
   const [entries, setEntries] = useState<WorkoutEntry[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [period, setPeriod] = useState<PeriodFilter>('weekly');
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(userAvatarUrl);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,6 +48,48 @@ export default function Dashboard() {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (userAvatarUrl) {
+      setAvatarUrl(userAvatarUrl);
+    }
+  }, [userAvatarUrl]);
+
+  useEffect(() => {
+    if (!userAvatarUrl) {
+      const saved = localStorage.getItem('dashboardAvatarUrl');
+      if (saved) {
+        setAvatarUrl(saved);
+      }
+    }
+  }, [userAvatarUrl]);
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setAvatarError(null);
+    setIsUploadingAvatar(true);
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      setAvatarUrl(result);
+      localStorage.setItem('dashboardAvatarUrl', result);
+      setIsUploadingAvatar(false);
+      event.target.value = '';
+    };
+    reader.onerror = () => {
+      setAvatarError('Unable to read that image. Please try a different file.');
+      setIsUploadingAvatar(false);
+      event.target.value = '';
+    };
+    reader.readAsDataURL(file);
+  };
 
   const formatDateKey = (date: Date) => format(date, 'yyyy-MM-dd');
 
@@ -243,7 +293,41 @@ export default function Dashboard() {
       <section className="rounded-[36px] border border-[#1e2025] bg-[#0b0c10] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.6)]">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-full border border-white/10 bg-gradient-to-br from-emerald-400/30 to-emerald-600/10" />
+            <button
+              type="button"
+              onClick={handleAvatarClick}
+              className="group relative h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-emerald-400/30 to-emerald-600/10 transition hover:border-emerald-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+              aria-busy={isUploadingAvatar}
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="User avatar"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold uppercase tracking-widest text-emerald-100/80">
+                  Add
+                </span>
+              )}
+              {!isUploadingAvatar && (
+                <span className="absolute inset-0 hidden items-center justify-center bg-black/40 text-[10px] font-semibold uppercase tracking-wider text-white group-hover:flex">
+                  Change
+                </span>
+              )}
+              {isUploadingAvatar && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/70 text-[10px] font-semibold uppercase tracking-wider text-white">
+                  Uploading…
+                </span>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.55em] text-emerald-300">
                 Your Progress
@@ -256,6 +340,9 @@ export default function Dashboard() {
             <Settings className="h-5 w-5" />
           </button>
         </div>
+        {avatarError && (
+          <p className="mt-3 text-xs font-medium text-rose-400">{avatarError}</p>
+        )}
 
         <div className="mt-6 grid grid-cols-4 gap-3">
           {([
@@ -302,59 +389,29 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="rounded-[28px] border border-[#1c1d21] bg-[#111216] p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.4em] text-emerald-400">
-                Workout Volume Over Time
-              </p>
-              <p className="mt-2 text-4xl font-semibold text-white">{formattedVolume}</p>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-300/70">{periodLabels[period]}</p>
+      <section className="rounded-[28px] border border-[#1c1d21] bg-[#111216] p-5">
+        <p className="text-sm font-semibold text-white">Muscle Group Focus</p>
+        <div className="mt-6 flex items-center gap-6">
+          <div className="relative h-32 w-32">
+            <div
+              className="h-full w-full rounded-full"
+              style={{ background: focusGradient }}
+            />
+            <div className="absolute inset-4 rounded-full border border-[#1f2024] bg-[#0a0b0f]" />
+            <div className="absolute inset-8 flex items-center justify-center rounded-full bg-black text-[10px] font-semibold uppercase tracking-widest text-emerald-200">
+              Focus
             </div>
-            <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300">
-              {volumeChange >= 0 ? `+${volumeChange}%` : `${volumeChange}%`}
-            </span>
           </div>
-          <div className="mt-6 grid grid-cols-4 gap-3">
-            {weeklyVolumeData.map(week => (
-              <div key={week.label} className="flex flex-col items-center gap-3">
-                <div className="flex h-40 w-full items-end rounded-3xl bg-[#1b1c21] p-2">
-                  <div
-                    className="w-full rounded-2xl bg-gradient-to-b from-lime-400/90 via-emerald-400 to-emerald-500/70 transition-[height]"
-                    style={{ height: `${Math.max((week.total / maxVolume) * 100, 12)}%` }}
-                  />
+          <div className="w-full space-y-3 text-sm">
+            {(muscleFocus.length ? muscleFocus : [{ label: 'Log workouts', value: 0, color: '#4ade80' }]).map(segment => (
+              <div key={segment.label} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
+                  <p className="text-white">{segment.label}</p>
                 </div>
-                <p className="text-xs uppercase tracking-wide text-zinc-400">{week.label}</p>
+                <p className="text-xs text-zinc-400">{segment.value}%</p>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="rounded-[28px] border border-[#1c1d21] bg-[#111216] p-5">
-          <p className="text-sm font-semibold text-white">Muscle Group Focus</p>
-          <div className="mt-6 flex items-center gap-6">
-            <div className="relative h-32 w-32">
-              <div
-                className="h-full w-full rounded-full"
-                style={{ background: focusGradient }}
-              />
-              <div className="absolute inset-4 rounded-full border border-[#1f2024] bg-[#0a0b0f]" />
-              <div className="absolute inset-8 flex items-center justify-center rounded-full bg-black text-[10px] font-semibold uppercase tracking-widest text-emerald-200">
-                Focus
-              </div>
-            </div>
-            <div className="w-full space-y-3 text-sm">
-              {(muscleFocus.length ? muscleFocus : [{ label: 'Log workouts', value: 0, color: '#4ade80' }]).map(segment => (
-                <div key={segment.label} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
-                    <p className="text-white">{segment.label}</p>
-                  </div>
-                  <p className="text-xs text-zinc-400">{segment.value}%</p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </section>
@@ -385,6 +442,34 @@ export default function Dashboard() {
                   style={{ width: `${item.value}%` }}
                 />
               </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-[28px] border border-[#1c1d21] bg-[#111216] p-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.4em] text-emerald-400">
+              Workout Volume Over Time
+            </p>
+            <p className="mt-2 text-4xl font-semibold text-white">{formattedVolume}</p>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-300/70">{periodLabels[period]}</p>
+          </div>
+          <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300">
+            {volumeChange >= 0 ? `+${volumeChange}%` : `${volumeChange}%`}
+          </span>
+        </div>
+        <div className="mt-6 grid grid-cols-4 gap-3">
+          {weeklyVolumeData.map(week => (
+            <div key={week.label} className="flex flex-col items-center gap-3">
+              <div className="flex h-40 w-full items-end rounded-3xl bg-[#1b1c21] p-2">
+                <div
+                  className="w-full rounded-2xl bg-gradient-to-b from-lime-400/90 via-emerald-400 to-emerald-500/70 transition-[height]"
+                  style={{ height: `${Math.max((week.total / maxVolume) * 100, 12)}%` }}
+                />
+              </div>
+              <p className="text-xs uppercase tracking-wide text-zinc-400">{week.label}</p>
             </div>
           ))}
         </div>
