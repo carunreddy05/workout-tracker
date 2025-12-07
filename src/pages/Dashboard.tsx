@@ -15,6 +15,7 @@ interface WorkoutEntry {
   workoutType: string;
   exercises?: { name: string; sets: string[] }[];
   cardio?: { incline?: string; speed?: string; time?: string };
+  weight?: number;
   notes?: string;
 }
 
@@ -173,6 +174,19 @@ export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
     entry.notes?.toLowerCase().includes('pr')
   ).length;
 
+  const latestWeightKg = useMemo(() => {
+    const weightedEntries = entries.filter(entry => typeof entry.weight === 'number');
+    if (!weightedEntries.length) return 0;
+
+    const sorted = [...weightedEntries].sort((a, b) => {
+      const aDate = new Date(a.dateDay?.split(' - ')[0]);
+      const bDate = new Date(b.dateDay?.split(' - ')[0]);
+      return aDate.getTime() - bDate.getTime();
+    });
+
+    return sorted[sorted.length - 1].weight ?? 0;
+  }, [entries]);
+
   const getWorkoutInfo = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
     return entries.find(e => e.dateDay?.startsWith(dateStr)) || null;
@@ -286,6 +300,7 @@ export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
   });
 
   const formattedVolume = totalVolume ? `${numberFormatter.format(totalVolume)} kg` : '0 kg';
+  const formattedWeight = latestWeightKg ? `${latestWeightKg} kg` : '0 kg';
   const maxVolume = Math.max(...weeklyVolumeData.map(week => week.total), 1);
 
   return (
@@ -369,9 +384,9 @@ export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
         <div className="mt-7 grid grid-cols-2 gap-4">
           {[
             { label: 'Total Workouts', value: totalWorkouts || 0, sub: periodLabels[period] },
-            { label: 'Total Volume', value: formattedVolume, sub: periodLabels[period] },
+            { label: 'Total Cardio Days', value: cardioDays, sub: periodLabels[period] },
             { label: 'Active Streak', value: `${activeStreak} days`, sub: 'ON FIRE' },
-            { label: 'New PRs', value: newPrs, sub: 'LOGGED IN NOTES' },
+            { label: 'Current Weight', value: formattedWeight, sub: 'Today' },
           ].map(card => (
             <div
               key={card.label}
@@ -422,12 +437,12 @@ export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
             <p className="text-sm font-semibold text-white">Workout Type Breakdown</p>
             <p className="text-[10px] uppercase tracking-[0.4em] text-emerald-400">Balance the work</p>
           </div>
-          <Link
+          {/* <Link
             to="/entry"
             className="rounded-full border border-emerald-400/40 px-4 py-1 text-sm font-semibold text-emerald-300 hover:bg-emerald-400/10"
           >
             Start Session
-          </Link>
+          </Link> */}
         </div>
         <div className="mt-6 space-y-4">
           {workoutTypeBreakdown.map(item => (

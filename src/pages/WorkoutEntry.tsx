@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Calendar } from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -471,13 +472,19 @@ export default function WorkoutEntry() {
           />
         </div>
 
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex flex-col items-center gap-3">
           <button
             onClick={saveEntry}
             className="w-full rounded-[30px] bg-gradient-to-r from-emerald-400 via-emerald-500 to-lime-400 py-4 text-lg font-semibold text-[#041208] shadow-[0_20px_40px_rgba(16,185,129,0.4)] transition hover:brightness-110 sm:w-auto sm:px-16"
           >
             Save Workout
           </button>
+          <Link
+            to="/"
+            className="w-full rounded-[30px] bg-gradient-to-r from-emerald-400 via-emerald-500 to-lime-400 py-4 text-lg font-semibold text-[#041208] text-center shadow-[0_20px_40px_rgba(16,185,129,0.4)] transition hover:brightness-110 sm:w-auto sm:px-16"
+          >
+            Home
+          </Link>
         </div>
       </section>
     </div>
