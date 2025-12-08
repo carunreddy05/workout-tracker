@@ -167,6 +167,8 @@ export default function WorkoutEntry() {
     if (exercisesToSave.length > 0) {
       const day = format(date, 'EEEE');
       
+      const parsedWeight = weight ? parseFloat(weight) : undefined;
+
       const newEntry = {
         userId: user.uid,
         dateDay: `${format(date, 'yyyy-MM-dd')} - ${day}`,

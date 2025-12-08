@@ -45,7 +45,7 @@ export default function WeightChart({ entries }: Props) {
   }[timeRange];
 
   const convertWeight = (value?: number) => {
-    if (value === undefined) return undefined;
+    if (value === undefined || value === 0) return undefined;
     return unit === 'kg' ? value : Number((value * 2.20462).toFixed(1));
   };
 
@@ -54,21 +54,38 @@ export default function WeightChart({ entries }: Props) {
       a.dateDay > b.dateDay ? 1 : -1
     );
 
-    return sortedEntries.reduce<ChartDataPoint[]>((acc, entry) => {
+    const byDate = new Map<string, number | undefined>();
+
+    sortedEntries.forEach((entry) => {
       const date = getDate(entry.dateDay);
       const entryDate = new Date(date);
 
       if (rangeDate && entryDate < rangeDate) {
-        return acc;
+        return;
       }
 
-      acc.push({
-        date,
-        weight: convertWeight(entry.weight)
-      });
+      const converted = convertWeight(entry.weight);
+      const existing = byDate.get(date);
 
-      return acc;
-    }, []);
+      // Prefer non-zero weights if available for a given date
+      if (converted === undefined) {
+        return;
+      }
+
+      if (converted === 0) {
+        if (existing === undefined) {
+          byDate.set(date, 0);
+        }
+        return;
+      }
+
+      byDate.set(date, converted);
+    });
+
+    return Array.from(byDate.entries()).map(([date, weight]) => ({
+      date,
+      weight,
+    }));
   }, [entries, rangeDate, unit]);
 
   const weights = chartData
@@ -77,10 +94,38 @@ export default function WeightChart({ entries }: Props) {
 
   const defaultMin = unit === 'kg' ? 60 : 130;
   const defaultMax = unit === 'kg' ? 100 : 230;
-  const minWeight =
-    weights.length > 0 ? Math.floor(Math.min(...weights) - 1) : defaultMin;
-  const maxWeight =
-    weights.length > 0 ? Math.ceil(Math.max(...weights) + 1) : defaultMax;
+  let minWeight = defaultMin;
+  let maxWeight = defaultMax;
+
+  if (weights.length > 0) {
+    const rawMin = Math.min(...weights);
+    const rawMax = Math.max(...weights);
+    const spread = rawMax - rawMin;
+
+    // Add a small dynamic padding so 0.2–1kg changes are visible
+    const padding =
+      unit === 'kg'
+        ? spread < 1
+          ? 0.5
+          : spread < 3
+            ? 1
+            : 2
+        : spread < 2
+          ? 1
+          : spread < 6
+            ? 2
+            : 4;
+
+    minWeight = Math.floor(rawMin - padding);
+    maxWeight = Math.ceil(rawMax + padding);
+
+    // Ensure we always have a non‑zero range
+    if (minWeight === maxWeight) {
+      const adjust = unit === 'kg' ? 1 : 2;
+      minWeight -= adjust;
+      maxWeight += adjust;
+    }
+  }
 
   const xTickFormatter = (date: string) => {
     const d = new Date(date);
@@ -181,7 +226,7 @@ export default function WeightChart({ entries }: Props) {
               <YAxis
                 domain={[minWeight, maxWeight]}
                 stroke="#4b5b4d"
-                tickCount={5}
+                tickCount={6}
                 tickLine={false}
                 axisLine={false}
               />
