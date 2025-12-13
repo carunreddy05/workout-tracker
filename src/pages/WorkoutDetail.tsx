@@ -4,22 +4,34 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '@/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { useAuth } from '@/lib/auth';
 
 export default function WorkoutDetail() {
   const { dateDay } = useParams();
   const navigate = useNavigate();
   const [entry, setEntry] = useState<any | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user || !dateDay) {
+      return;
+    }
+
     const fetchEntry = async () => {
-      const q = query(collection(db, 'gymEntries'), where('dateDay', '==', dateDay));
+      const q = query(
+        collection(db, 'gymEntries'),
+        where('userId', '==', user.uid),
+        where('dateDay', '==', dateDay),
+      );
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
         setEntry(snapshot.docs[0].data());
+      } else {
+        setEntry(null);
       }
     };
     fetchEntry();
-  }, [dateDay]);
+  }, [dateDay, user]);
 
   if (!entry) {
     return <div className="text-center text-zinc-400 mt-10">Loading workout details...</div>;

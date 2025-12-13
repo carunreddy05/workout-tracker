@@ -9,7 +9,7 @@ export default function Header() {
   const location = useLocation();
 
   const links = [
-    { name: 'Dashboard', path: '/' },
+    { name: 'Dashboard', path: '/dashboard' },
     { name: 'Add Workout', path: '/entry' },
     { name: 'Workout History', path: '/history' },
   ];
@@ -28,7 +28,7 @@ export default function Header() {
   return (
     <header className="border-b border-[#15161a] bg-[#07080b]/95 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/dashboard" className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/30 bg-gradient-to-b from-[#0f2118] to-[#041006]">
             <TrackfitMark size={36} />
           </div>

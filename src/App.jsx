@@ -5,22 +5,68 @@ import WorkoutEntry from './pages/WorkoutEntry';
 import WorkoutHistory from './pages/WorkoutHistory';
 import WorkoutDetail from './pages/WorkoutDetail';
 import GannNumbers from './pages/GannNumbers';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Welcome from './pages/Welcome';
+import OnboardingGoals from './pages/OnboardingGoals';
+import OnboardingSetup from './pages/OnboardingSetup';
+import SeedDebug from './pages/SeedDebug';
+import { AuthProvider } from './lib/auth';
+import RequireAuth from './components/RequireAuth';
+import RequireOnboardingComplete from './components/RequireOnboardingComplete';
 
 function App() {
+  const ProtectedApp = () => (
+    <RequireAuth>
+      <RequireOnboardingComplete>
+        <Layout>
+          <Routes>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/entry" element={<WorkoutEntry />} />
+            <Route path="/history" element={<WorkoutHistory />} />
+            <Route path="/details/:dateDay" element={<WorkoutDetail />} />
+            <Route path="/gann" element={<GannNumbers />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Layout>
+      </RequireOnboardingComplete>
+    </RequireAuth>
+  );
+
   return (
     <BrowserRouter>
-      <Layout>
+      <AuthProvider>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/entry" element={<WorkoutEntry />} />
-          <Route path="/history" element={<WorkoutHistory />} />
-          <Route path="/details/:dateDay" element={<WorkoutDetail />} />
-          <Route path="/gann" element={<GannNumbers />} />
-
-          {/* 🔥 Catch-all route: redirects unknown paths to dashboard */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/" element={<Welcome />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/onboarding/goals"
+            element={
+              <RequireAuth>
+                <OnboardingGoals />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/onboarding/setup"
+            element={
+              <RequireAuth>
+                <OnboardingSetup />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/debug/seed"
+            element={
+              <RequireAuth>
+                <SeedDebug />
+              </RequireAuth>
+            }
+          />
+          <Route path="/*" element={<ProtectedApp />} />
         </Routes>
-      </Layout>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

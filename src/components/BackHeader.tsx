@@ -12,7 +12,7 @@ export default function BackHeader({ title, showHome = true, titleClassName }: P
     <div className="mb-6 flex items-center gap-3">
       {showHome && (
         <Link
-          to="/"
+          to="/dashboard"
           className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#101216] px-4 py-2 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)] hover:bg-[#151821]"
         >
           <span>🏠</span>

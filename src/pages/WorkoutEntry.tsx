@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/firebase';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
 import axios from "axios";
+import { useAuth } from '@/lib/auth';
 
 const workoutOptions = ['Chest/Triceps', 'Back/Biceps', 'Shoulders', 'Legs', 'Core', 'Custom Workout'];
 
@@ -38,6 +39,7 @@ export default function WorkoutEntry() {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const exerciseInputRef = useRef<HTMLInputElement | null>(null);
   const [suppressFetch, setSuppressFetch] = useState(false);
+  const { user } = useAuth();
 
   // Debounce timer
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -133,10 +135,12 @@ export default function WorkoutEntry() {
   };
 
   const saveEntry = async () => {
+    if (!user) return;
     if (workoutType && exerciseList.length > 0) {
       const day = format(date, 'EEEE');
       
       const newEntry = {
+        userId: user.uid,
         dateDay: `${format(date, 'yyyy-MM-dd')} - ${day}`,
         weight: weight ? parseFloat(weight) : 0,
         workoutType,
@@ -148,8 +152,9 @@ export default function WorkoutEntry() {
       };
       await addDoc(collection(db, "gymEntries"), newEntry);
 
-      const localEntries = JSON.parse(localStorage.getItem('gymEntries') || '[]');
-      localStorage.setItem('gymEntries', JSON.stringify([...localEntries, newEntry]));
+      const storageKey = `gymEntries_${user.uid}`;
+      const localEntries = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      localStorage.setItem(storageKey, JSON.stringify([...localEntries, newEntry]));
 
       
       setWorkoutType('');
@@ -480,7 +485,7 @@ export default function WorkoutEntry() {
             Save Workout
           </button>
           <Link
-            to="/"
+            to="/dashboard"
             className="w-full rounded-[30px] bg-gradient-to-r from-emerald-400 via-emerald-500 to-lime-400 py-4 text-lg font-semibold text-[#041208] text-center shadow-[0_20px_40px_rgba(16,185,129,0.4)] transition hover:brightness-110 sm:w-auto sm:px-16"
           >
             Home

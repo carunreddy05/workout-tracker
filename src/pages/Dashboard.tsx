@@ -5,10 +5,11 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import '@/styles/calendar-custom.css';
 import { db } from '@/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { format, subDays } from 'date-fns';
 import WeightChart from '@/components/WeightChart';
 import { Settings } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
 
 interface WorkoutEntry {
   dateDay: string;
@@ -40,15 +41,23 @@ export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) {
+      setEntries([]);
+      return;
+    }
+
     const fetchData = async () => {
-      const snapshot = await getDocs(collection(db, 'gymEntries'));
-      const loaded = snapshot.docs.map(doc => doc.data() as WorkoutEntry);
+      const gymEntriesRef = collection(db, 'gymEntries');
+      const userQuery = query(gymEntriesRef, where('userId', '==', user.uid));
+      const snapshot = await getDocs(userQuery);
+      const loaded = snapshot.docs.map(docSnap => docSnap.data() as WorkoutEntry);
       setEntries(loaded);
     };
     fetchData();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (userAvatarUrl) {
@@ -347,7 +356,9 @@ export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
               <p className="text-[10px] font-semibold uppercase tracking-[0.55em] text-emerald-300">
                 Your Progress
               </p>
-              <h1 className="text-2xl font-semibold text-white">Hello, Carun</h1>
+              <h1 className="text-2xl font-semibold text-white">
+                {user?.displayName ? `Hello, ${user.displayName}` : 'Hello, Athlete'}
+              </h1>
               <p className="text-sm text-zinc-400">Dialed in and consistent.</p>
             </div>
           </div>

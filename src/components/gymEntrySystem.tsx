@@ -8,7 +8,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, query, where } from 'firebase/firestore';
+import { useAuth } from '@/lib/auth';
 
 const workoutOptions = ['Chest/Triceps', 'Back/Biceps', 'Shoulders', 'Legs', 'Core'];
 
@@ -29,6 +30,7 @@ export default function GymEntrySystem() {
   const [lastDeletedEntry, setLastDeletedEntry] = useState<any | null>(null);
   const [showUndoBar, setShowUndoBar] = useState(false);
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { user } = useAuth();
 
   const handleCloseModal = () => {
     setShowSuccessModal(false);
@@ -46,24 +48,33 @@ export default function GymEntrySystem() {
   };
 
   useEffect(() => {
+    if (!user) {
+      setEntries([]);
+      return;
+    }
+
     const loadEntries = async () => {
-      const localData = localStorage.getItem('gymEntries');
+      const storageKey = `gymEntries_${user.uid}`;
+      const localData = localStorage.getItem(storageKey);
       if (localData) {
         setEntries(JSON.parse(localData));
       }
 
-      const snapshot = await getDocs(collection(db, "gymEntries"));
+      const q = query(collection(db, "gymEntries"), where('userId', '==', user.uid));
+      const snapshot = await getDocs(q);
       const cloudData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       if (cloudData.length > 0) {
         setEntries(cloudData);
       }
     };
     loadEntries();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    localStorage.setItem('gymEntries', JSON.stringify(entries));
-  }, [entries]);
+    if (!user) return;
+    const storageKey = `gymEntries_${user.uid}`;
+    localStorage.setItem(storageKey, JSON.stringify(entries));
+  }, [entries, user]);
 
   useEffect(() => {
     return () => {
@@ -82,9 +93,11 @@ export default function GymEntrySystem() {
   };
 
   const saveEntry = async () => {
+    if (!user) return;
     if (workoutType && exerciseList.length > 0) {
       const day = format(date, 'EEEE');
       const newEntry = {
+        userId: user.uid,
         dateDay: `${format(date, 'yyyy-MM-dd')} - ${day}`,
         workoutType,
         exercises: exerciseList,
