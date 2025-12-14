@@ -1,12 +1,15 @@
 // src/components/Header.tsx
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import TrackfitMark from './TrackfitMark';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/firebase';
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const links = [
     { name: 'Dashboard', path: '/dashboard' },
@@ -23,6 +26,16 @@ export default function Header() {
       'px-4 py-1 rounded-full text-sm font-medium transition',
       isActive ? 'bg-emerald-500 text-black' : 'text-zinc-400 hover:text-white',
     ].join(' ');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setMenuOpen(false);
+      navigate('/login', { replace: true });
+    } catch {
+      // swallow error for now; could add toast later
+    }
   };
 
   return (
@@ -53,6 +66,13 @@ export default function Header() {
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="ml-2 rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-zinc-300 transition hover:border-emerald-400/60 hover:text-white"
+          >
+            Logout
+          </button>
         </nav>
       </div>
 
@@ -77,6 +97,13 @@ export default function Header() {
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-2 block w-full rounded-full bg-[#1b1c22] px-4 py-3 text-center font-semibold text-zinc-100 transition hover:bg-[#22242b]"
+          >
+            Logout
+          </button>
         </div>
       )}
     </header>
