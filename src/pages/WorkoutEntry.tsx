@@ -163,14 +163,15 @@ export default function WorkoutEntry() {
     const pendingStored = JSON.parse(localStorage.getItem(pendingKey) || '[]');
     const exercisesToSave =
       exerciseList.length > 0 ? exerciseList : Array.isArray(pendingStored) ? pendingStored : [];
-    if (workoutType && exercisesToSave.length > 0) {
+    const resolvedWorkoutType = workoutType || 'Manual Entry';
+    if (exercisesToSave.length > 0) {
       const day = format(date, 'EEEE');
       
       const newEntry = {
         userId: user.uid,
         dateDay: `${format(date, 'yyyy-MM-dd')} - ${day}`,
         weight: weight ? parseFloat(weight) : 0,
-        workoutType,
+        workoutType: resolvedWorkoutType,
         exercises: exercisesToSave,
         notes,
         cardio: includeCardio
@@ -310,7 +311,7 @@ export default function WorkoutEntry() {
         </div>
 
         <div className="mt-6">
-          <label className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">Workout Type</label>
+          <label className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">Workout Type (Manual Entry)</label>
           <Select onValueChange={setWorkoutType} value={workoutType}>
             <SelectTrigger className="mt-2 w-full rounded-2xl border border-white/5 bg-[#13141b] text-white focus-visible:border-emerald-400/70">
               <SelectValue placeholder="Select Workout Type" />
