@@ -13,6 +13,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', Icon: Home },
+  { to: '/workouts/select', label: 'Exercises', Icon: Dumbbell },
   { to: '/entry', label: 'Log', Icon: NotebookPen },
   { to: '/history', label: 'History', Icon: History },
 ];

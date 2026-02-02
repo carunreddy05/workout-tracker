@@ -1,12 +1,42 @@
-# React + Vite
+# Trackfit Workout Tracker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern workout logging and coaching web app focused on performance tracking, exercise flows, and session reviews. The UI is optimized for mobile with a dark, neon-accented visual system and a streamlined workout entry pipeline.
 
-Currently, two official plugins are available:
+## Highlights
+- Guided workout flow: select split, pick exercise categories, log sets, and review before saving.
+- Mobile-first layout with bottom navigation and quick workout CTA.
+- Calendar and history views for training consistency and progress.
+- Firebase-backed persistence for workout entries and user-specific data.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Tech Stack
+- Frontend: React 19, Vite 6, React Router 7
+- Styling: Tailwind CSS v4, custom CSS modules
+- Animations: Framer Motion
+- Backend/DB: Firebase + Firestore
+- Charts: Recharts
+- UI icons: Lucide
+- Utilities: date-fns, axios
+- Carousel: react-slick + slick-carousel
 
-## Expanding the ESLint configuration
+## Key Routes
+- / : Welcome
+- /login : Sign in
+- /register : Sign up
+- /dashboard : Performance dashboard
+- /entry : Log workout (final review & save)
+- /history : Workout history
+- /workouts/select : Workout split selection
+- /workouts/push-day : Exercise categories
+- /workouts/chest : Exercise list + set logging
 
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Scripts
+- npm run dev : Start local dev server
+- npm run build : Production build
+- npm run preview : Preview production build
+- npm run lint : Lint codebase
+- npm run seed:testqa : Seed test data
+
+## Notes
+- Firebase configuration is expected in the project (see src/firebase.js).
+- Exercise selections can be staged in localStorage and reviewed on the log page before saving.
+
