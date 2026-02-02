@@ -525,7 +525,7 @@ export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
                 const colorClass = `workout-indicator ${`workout-type-${type}`}`;
                 const displayText = workout.workoutType?.split('/')[0];
                 return (
-                  <div className="relative h-full w-full">
+                  <div className="workout-container">
                     <div className={colorClass}>{displayText}</div>
                   </div>
                 );

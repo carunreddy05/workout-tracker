@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Calendar } from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
@@ -40,9 +40,33 @@ export default function WorkoutEntry() {
   const exerciseInputRef = useRef<HTMLInputElement | null>(null);
   const [suppressFetch, setSuppressFetch] = useState(false);
   const { user } = useAuth();
+  const pendingKey = useMemo(
+    () => (user ? `pendingWorkoutExercises_${user.uid}` : 'pendingWorkoutExercises_guest'),
+    [user]
+  );
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Debounce timer
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const loadPendingExercises = () => {
+    const stored = JSON.parse(localStorage.getItem(pendingKey) || '[]');
+    setPendingCount(Array.isArray(stored) ? stored.length : 0);
+    if (stored.length && exerciseList.length === 0) {
+      setExerciseList(stored);
+    }
+  };
+
+  useEffect(() => {
+    loadPendingExercises();
+  }, [pendingKey]);
+
+  useEffect(() => {
+    if (exerciseList.length) {
+      localStorage.setItem(pendingKey, JSON.stringify(exerciseList));
+      setPendingCount(exerciseList.length);
+    }
+  }, [exerciseList, pendingKey]);
 
   // Fetch suggestions when exerciseName changes
   useEffect(() => {
@@ -136,7 +160,10 @@ export default function WorkoutEntry() {
 
   const saveEntry = async () => {
     if (!user) return;
-    if (workoutType && exerciseList.length > 0) {
+    const pendingStored = JSON.parse(localStorage.getItem(pendingKey) || '[]');
+    const exercisesToSave =
+      exerciseList.length > 0 ? exerciseList : Array.isArray(pendingStored) ? pendingStored : [];
+    if (workoutType && exercisesToSave.length > 0) {
       const day = format(date, 'EEEE');
       
       const newEntry = {
@@ -144,7 +171,7 @@ export default function WorkoutEntry() {
         dateDay: `${format(date, 'yyyy-MM-dd')} - ${day}`,
         weight: weight ? parseFloat(weight) : 0,
         workoutType,
-        exercises: exerciseList,
+        exercises: exercisesToSave,
         notes,
         cardio: includeCardio
           ? { incline, speed, time: cardioTime }
@@ -167,6 +194,8 @@ export default function WorkoutEntry() {
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
       setWeight('');
+      localStorage.removeItem(pendingKey);
+      setPendingCount(0);
     }
   };
   
@@ -199,6 +228,52 @@ export default function WorkoutEntry() {
           <span className="rounded-full border border-emerald-400/30 px-4 py-1 text-xs font-semibold uppercase tracking-[0.4em] text-emerald-200">
             Session Builder
           </span>
+        </div>
+        <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-[#070c0a] px-4 py-3 text-xs text-emerald-100/80">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Pending exercises: <strong className="text-emerald-200">{pendingCount}</strong>
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to="/workouts/select"
+                className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100"
+              >
+                Add Exercises
+              </Link>
+              <button
+                type="button"
+                onClick={loadPendingExercises}
+                className="rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-300 hover:text-white"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+          {exerciseList.length > 0 && (
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {exerciseList.map((ex, idx) => (
+                <div
+                  key={`${ex.name}-${idx}`}
+                  className="rounded-xl border border-white/10 bg-black/40 px-3 py-3"
+                >
+                  <p className="text-sm font-semibold text-white">{ex.name}</p>
+                  <div className="mt-2 space-y-1 text-[11px] text-emerald-100/70">
+                    {ex.sets.map((set: string, i: number) => {
+                      const [w, r] = (set || '').split('@');
+                      return (
+                        <div key={i} className="flex items-center justify-between">
+                          <span className="text-zinc-500">Set {i + 1}</span>
+                          <span className="text-white">{w || '—'} kg</span>
+                          <span className="text-white">{r || '—'} reps</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div>
@@ -380,7 +455,19 @@ export default function WorkoutEntry() {
               </div>
 
               {exerciseList.length > 0 && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200/80">
+                      Exercises Added
+                    </p>
+                    <Link
+                      to="/workouts/select"
+                      className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100"
+                    >
+                      Add More Exercises
+                    </Link>
+                  </div>
+
                   {exerciseList.map((ex, idx) => (
                     <div
                       key={idx}
@@ -396,7 +483,10 @@ export default function WorkoutEntry() {
                         ) : (
                           <div className="h-10 w-10 rounded-lg border border-white/10 bg-white/5" />
                         )}
-                        {/* Intentionally do not show name text per request */}
+                        <div>
+                          <p className="text-sm font-semibold text-white">{ex.name}</p>
+                          <p className="text-xs text-zinc-500">Logged sets</p>
+                        </div>
                       </div>
                       <div className="mt-1 space-y-2 text-xs text-zinc-400">
                         {ex.sets.map((set: string, i: number) => {
