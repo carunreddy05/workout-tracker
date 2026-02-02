@@ -12,7 +12,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { to: '/', label: 'Dashboard', Icon: Home },
+  { to: '/dashboard', label: 'Dashboard', Icon: Home },
   { to: '/entry', label: 'Log', Icon: NotebookPen },
   { to: '/history', label: 'History', Icon: History },
 ];
@@ -27,9 +27,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Mobile Bottom CTA + Nav */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/95 via-black/80 to-black/20 px-4 pb-4 pt-6 sm:hidden">
         <div className="max-w-md mx-auto space-y-4">
-          {location.pathname !== '/entry' && (
+          {!location.pathname.startsWith('/workouts') && location.pathname !== '/entry' && (
             <Link
-              to="/entry"
+              to="/workouts/select"
               className="flex items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-emerald-400 to-lime-400 py-3 text-base font-semibold text-emerald-950 shadow-[0_10px_35px_rgba(34,197,94,0.45)] transition hover:shadow-[0_15px_40px_rgba(34,197,94,0.6)]"
             >
               <Dumbbell className="h-5 w-5" />

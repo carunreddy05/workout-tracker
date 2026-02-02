@@ -2,11 +2,12 @@
 // Styled table version with enhanced headers and workout type
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '@/firebase';
-import { collection, getDocs, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, setDoc, updateDoc, query, where } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, isAfter, subDays } from 'date-fns';
 import BackHeader from '@/components/BackHeader';
+import { useAuth } from '@/lib/auth';
 
 const workoutOptions = ['All', 'Chest/Triceps', 'Back/Biceps', 'Shoulders', 'Legs', 'Core'];
 
@@ -20,10 +21,18 @@ export default function WorkoutHistory() {
   const [lastDeletedEntry, setLastDeletedEntry] = useState<any | null>(null);
   const [showUndoBar, setShowUndoBar] = useState(false);
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
+    if (!user) {
+      setEntries([]);
+      return;
+    }
+
     const fetchEntries = async () => {
-      const snapshot = await getDocs(collection(db, 'gymEntries'));
+      const gymEntriesRef = collection(db, 'gymEntries');
+      const userQuery = query(gymEntriesRef, where('userId', '==', user.uid));
+      const snapshot = await getDocs(userQuery);
       const data = snapshot.docs.map(docSnap => ({
         id: docSnap.id,
         ...docSnap.data(),
@@ -31,7 +40,7 @@ export default function WorkoutHistory() {
       setEntries(data);
     };
     fetchEntries();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     return () => {

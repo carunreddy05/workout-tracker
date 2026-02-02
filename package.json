@@ -7,13 +7,15 @@
     "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "seed:testqa": "node scripts/seedGymEntries.mjs"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.2.2",
     "axios": "^1.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "core-js": "^3.35.0",
     "date-fns": "^4.1.0",
     "firebase": "^11.6.1",
     "firebase-admin": "^13.4.0",

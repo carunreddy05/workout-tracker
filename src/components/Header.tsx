@@ -1,15 +1,18 @@
 // src/components/Header.tsx
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import TrackfitMark from './TrackfitMark';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/firebase';
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const links = [
-    { name: 'Dashboard', path: '/' },
+    { name: 'Dashboard', path: '/dashboard' },
     { name: 'Add Workout', path: '/entry' },
     { name: 'Workout History', path: '/history' },
   ];
@@ -25,10 +28,20 @@ export default function Header() {
     ].join(' ');
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setMenuOpen(false);
+      navigate('/login', { replace: true });
+    } catch {
+      // swallow error for now; could add toast later
+    }
+  };
+
   return (
     <header className="border-b border-[#15161a] bg-[#07080b]/95 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-        <Link to="/" className="flex items-center gap-3">
+        <Link to="/dashboard" className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/30 bg-gradient-to-b from-[#0f2118] to-[#041006]">
             <TrackfitMark size={36} />
           </div>
@@ -53,6 +66,13 @@ export default function Header() {
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="ml-2 rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-zinc-300 transition hover:border-emerald-400/60 hover:text-white"
+          >
+            Logout
+          </button>
         </nav>
       </div>
 
@@ -77,6 +97,13 @@ export default function Header() {
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-2 block w-full rounded-full bg-[#1b1c22] px-4 py-3 text-center font-semibold text-zinc-100 transition hover:bg-[#22242b]"
+          >
+            Logout
+          </button>
         </div>
       )}
     </header>
