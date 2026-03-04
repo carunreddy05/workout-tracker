@@ -1,36 +1,213 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, Play, Search, SlidersHorizontal } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
-const filters = ['All', 'Upper', 'Mid', 'Lower'];
+const splitTitles: Record<string, string> = {
+  push: 'Push Day',
+  pull: 'Pull Day',
+  legs: 'Leg Day',
+  core: 'Core Workout',
+};
 
-const exercises = [
-  {
-    name: 'Incline Chest Press',
-    focus: 'Upper Pectorals',
-    sets: '3-4 sets',
-    reps: '8 - 12 reps',
-    level: 'Intermediate',
-    image: '/trackfit-hero.jpg',
-  },
-  { name: 'Mid Chest Press', focus: 'Middle Pectorals' },
-  { name: 'Decline Chest Press', focus: 'Lower Pectorals' },
-];
+type ExerciseItem = {
+  name: string;
+  focus: string;
+  category: string;
+  kind: 'Compound' | 'Isolation' | 'Stability';
+  sets: string;
+  reps: string;
+  level: string;
+  image?: string;
+};
+
+const exerciseLibrary: Record<string, ExerciseItem[]> = {
+  push: [
+    {
+      name: 'Incline Chest Press',
+      focus: 'Upper Pectorals',
+      category: 'chest',
+      kind: 'Compound',
+      sets: '3-4 sets',
+      reps: '8 - 12 reps',
+      level: 'Intermediate',
+      image: '/trackfit-hero.jpg',
+    },
+    {
+      name: 'Dumbbell Shoulder Press',
+      focus: 'Front/Side Delts',
+      category: 'shoulders',
+      kind: 'Compound',
+      sets: '3-4 sets',
+      reps: '8 - 12 reps',
+      level: 'Intermediate',
+    },
+    {
+      name: 'Cable Triceps Pushdown',
+      focus: 'Triceps Lateral Head',
+      category: 'triceps',
+      kind: 'Isolation',
+      sets: '3 sets',
+      reps: '10 - 15 reps',
+      level: 'Beginner',
+    },
+    {
+      name: 'Lateral Raise',
+      focus: 'Side Delts',
+      category: 'shoulders',
+      kind: 'Isolation',
+      sets: '3 sets',
+      reps: '12 - 20 reps',
+      level: 'Beginner',
+    },
+  ],
+  pull: [
+    {
+      name: 'Lat Pulldown',
+      focus: 'Lats',
+      category: 'lats',
+      kind: 'Compound',
+      sets: '3-4 sets',
+      reps: '8 - 12 reps',
+      level: 'Beginner',
+      image: '/trackfit-hero.jpg',
+    },
+    {
+      name: 'Chest Supported Row',
+      focus: 'Mid Back',
+      category: 'mid-back',
+      kind: 'Compound',
+      sets: '3-4 sets',
+      reps: '8 - 12 reps',
+      level: 'Intermediate',
+    },
+    {
+      name: 'Incline Dumbbell Curl',
+      focus: 'Biceps Long Head',
+      category: 'biceps',
+      kind: 'Isolation',
+      sets: '3 sets',
+      reps: '10 - 15 reps',
+      level: 'Beginner',
+    },
+    {
+      name: 'Face Pull',
+      focus: 'Rear Delts',
+      category: 'mid-back',
+      kind: 'Isolation',
+      sets: '3 sets',
+      reps: '12 - 20 reps',
+      level: 'Beginner',
+    },
+  ],
+  legs: [
+    {
+      name: 'Back Squat',
+      focus: 'Quads & Glutes',
+      category: 'quads',
+      kind: 'Compound',
+      sets: '3-5 sets',
+      reps: '5 - 10 reps',
+      level: 'Intermediate',
+      image: '/trackfit-hero.jpg',
+    },
+    {
+      name: 'Romanian Deadlift',
+      focus: 'Hamstrings',
+      category: 'hamstrings',
+      kind: 'Compound',
+      sets: '3-4 sets',
+      reps: '6 - 10 reps',
+      level: 'Intermediate',
+    },
+    {
+      name: 'Bulgarian Split Squat',
+      focus: 'Quads/Glutes',
+      category: 'glutes',
+      kind: 'Compound',
+      sets: '3 sets',
+      reps: '8 - 12 reps',
+      level: 'Intermediate',
+    },
+    {
+      name: 'Seated Leg Curl',
+      focus: 'Hamstrings',
+      category: 'hamstrings',
+      kind: 'Isolation',
+      sets: '3 sets',
+      reps: '10 - 15 reps',
+      level: 'Beginner',
+    },
+  ],
+  core: [
+    {
+      name: 'Cable Crunch',
+      focus: 'Upper Abs',
+      category: 'upper-abs',
+      kind: 'Isolation',
+      sets: '3-4 sets',
+      reps: '10 - 15 reps',
+      level: 'Beginner',
+      image: '/trackfit-hero.jpg',
+    },
+    {
+      name: 'Hanging Knee Raise',
+      focus: 'Lower Abs',
+      category: 'lower-abs',
+      kind: 'Stability',
+      sets: '3 sets',
+      reps: '8 - 15 reps',
+      level: 'Intermediate',
+    },
+    {
+      name: 'Pallof Press',
+      focus: 'Obliques',
+      category: 'obliques',
+      kind: 'Stability',
+      sets: '3 sets',
+      reps: '10 - 15 reps/side',
+      level: 'Beginner',
+    },
+    {
+      name: 'Dead Bug',
+      focus: 'Deep Core',
+      category: 'upper-abs',
+      kind: 'Stability',
+      sets: '3 sets',
+      reps: '8 - 12 reps/side',
+      level: 'Beginner',
+    },
+  ],
+};
+
+const filters = ['All', 'Compound', 'Isolation', 'Stability'];
 
 export default function ExerciseList() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const split = searchParams.get('split') || 'push';
+  const category = searchParams.get('category') || 'chest';
+  const splitTitle = splitTitles[split] || splitTitles.push;
+
   const { user } = useAuth();
   const pendingKey = useMemo(
     () => (user ? `pendingWorkoutExercises_${user.uid}` : 'pendingWorkoutExercises_guest'),
     [user]
   );
+  const [activeFilter, setActiveFilter] = useState('All');
   const [sets, setSets] = useState([
     { weight: '', reps: '' },
     { weight: '', reps: '' },
     { weight: '', reps: '' },
   ]);
   const [saveNotice, setSaveNotice] = useState('');
+
+  const splitExercises = exerciseLibrary[split] || exerciseLibrary.push;
+  const exercisesByCategory = splitExercises.filter(exercise => exercise.category === category);
+  const visibleExercises = (exercisesByCategory.length ? exercisesByCategory : splitExercises).filter(exercise =>
+    activeFilter === 'All' ? true : exercise.kind === activeFilter
+  );
+  const primaryExercise = visibleExercises[0] || splitExercises[0];
 
   const addSet = () => {
     setSets(prev => [...prev, { weight: '', reps: '' }]);
@@ -44,21 +221,20 @@ export default function ExerciseList() {
     setSets(prev => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
   };
 
-  const saveToWorkout = () => {
+  const saveToWorkout = (exerciseName?: string) => {
     const formattedSets = sets
       .filter(row => row.weight || row.reps)
       .map(row => `${row.weight}@${row.reps}`);
 
     const payload = {
-      name: exercises[0].name,
+      name: exerciseName || primaryExercise.name,
       sets: formattedSets.length ? formattedSets : ['@'],
     };
 
     const existing = JSON.parse(localStorage.getItem(pendingKey) || '[]');
     localStorage.setItem(pendingKey, JSON.stringify([...existing, payload]));
-    setSaveNotice('Added to log. Review in Log Workout.');
+    setSaveNotice(`${payload.name} added to log queue.`);
     setTimeout(() => setSaveNotice(''), 2000);
-    navigate('/entry');
   };
 
   return (
@@ -66,14 +242,16 @@ export default function ExerciseList() {
       <header className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => navigate('/workouts/push-day')}
+          onClick={() => navigate(`/workouts/push-day?split=${split}`)}
           className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#101216] text-white"
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="text-center">
-          <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">Push Day</p>
-          <h1 className="text-lg font-semibold text-white">Chest Exercises</h1>
+          <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">{splitTitle}</p>
+          <h1 className="text-lg font-semibold text-white">
+            {(category || 'all').replace('-', ' ')} Exercises
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <button className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-[#101216] text-emerald-200">
@@ -89,9 +267,11 @@ export default function ExerciseList() {
         {filters.map(filter => (
           <button
             key={filter}
+            type="button"
+            onClick={() => setActiveFilter(filter)}
             className={[
               'rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition',
-              filter === 'All'
+              filter === activeFilter
                 ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'
                 : 'border-white/10 bg-black/40 text-zinc-400 hover:text-white',
             ].join(' ')}
@@ -102,48 +282,49 @@ export default function ExerciseList() {
       </div>
 
       <div className="rounded-[30px] border border-emerald-500/25 bg-gradient-to-b from-[#07150b] via-[#04120a] to-black p-5 shadow-[0_26px_70px_rgba(0,0,0,0.75)]">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200/70">Main Compounds</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-200/70">Recommended Starter</p>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-500/30 bg-black/60">
           <div className="relative">
             <div
               className="h-44 w-full bg-cover bg-center"
-              style={{ backgroundImage: `url('${exercises[0].image}')` }}
+              style={{ backgroundImage: `url('${primaryExercise.image || '/trackfit-hero.jpg'}')` }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/30 to-black/75" />
             <button className="absolute inset-0 m-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/60 text-emerald-50 shadow-[0_0_30px_rgba(34,197,94,0.6)]">
               <Play className="h-5 w-5" />
             </button>
             <span className="absolute right-3 top-3 rounded-full bg-emerald-500/30 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
-              Selected
+              Best Match
             </span>
           </div>
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-white">{exercises[0].name}</h2>
-                <p className="text-xs text-emerald-100/70">Focus on {exercises[0].focus}</p>
+                <h2 className="text-base font-semibold text-white">{primaryExercise.name}</h2>
+                <p className="text-xs text-emerald-100/70">Focus on {primaryExercise.focus}</p>
               </div>
-              <Link
-                to="/entry"
+              <button
+                type="button"
+                onClick={() => saveToWorkout(primaryExercise.name)}
                 className="rounded-full bg-emerald-500/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-100"
               >
                 Add
-              </Link>
+              </button>
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-emerald-100/70">
               <div className="rounded-xl border border-white/10 bg-black/40 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Suggested</p>
-                <p className="mt-1 text-sm font-semibold text-white">{exercises[0].sets}</p>
+                <p className="mt-1 text-sm font-semibold text-white">{primaryExercise.sets}</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/40 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Rep Range</p>
-                <p className="mt-1 text-sm font-semibold text-white">{exercises[0].reps}</p>
+                <p className="mt-1 text-sm font-semibold text-white">{primaryExercise.reps}</p>
               </div>
               <div className="rounded-xl border border-white/10 bg-black/40 p-3">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70">Difficulty</p>
-                <p className="mt-1 text-sm font-semibold text-white">{exercises[0].level}</p>
+                <p className="mt-1 text-sm font-semibold text-white">{primaryExercise.level}</p>
               </div>
             </div>
 
@@ -194,10 +375,10 @@ export default function ExerciseList() {
 
             <button
               type="button"
-              onClick={saveToWorkout}
+              onClick={() => saveToWorkout(primaryExercise.name)}
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 to-lime-400 py-3 text-sm font-semibold text-emerald-950 shadow-[0_12px_40px_rgba(34,197,94,0.55)]"
             >
-              Save Exercise Progress
+              Add Exercise to Workout Log
               <ChevronRight className="h-4 w-4" />
             </button>
             {saveNotice && (
@@ -209,7 +390,7 @@ export default function ExerciseList() {
         </div>
 
         <div className="mt-5 space-y-3">
-          {exercises.slice(1).map(exercise => (
+          {visibleExercises.slice(1).map(exercise => (
             <div
               key={exercise.name}
               className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/40 px-4 py-3"
@@ -218,10 +399,23 @@ export default function ExerciseList() {
                 <p className="text-sm font-semibold text-white">{exercise.name}</p>
                 <p className="text-xs text-emerald-100/70">Target: {exercise.focus}</p>
               </div>
-              <ChevronRight className="h-4 w-4 text-emerald-200" />
+              <button
+                type="button"
+                onClick={() => saveToWorkout(exercise.name)}
+                className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-100"
+              >
+                Add
+              </button>
             </div>
           ))}
         </div>
+
+        <Link
+          to="/entry"
+          className="mt-4 flex w-full items-center justify-center rounded-2xl border border-white/10 bg-black/45 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-200"
+        >
+          Go To Log Workout
+        </Link>
       </div>
     </div>
   );

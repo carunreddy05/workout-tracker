@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Calendar } from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth';
 const workoutOptions = ['Chest/Triceps', 'Back/Biceps', 'Shoulders', 'Legs', 'Core', 'Custom Workout'];
 
 export default function WorkoutEntry() {
+  const navigate = useNavigate();
   const [date, setDate] = useState(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [workoutType, setWorkoutType] = useState('');
@@ -26,10 +27,10 @@ export default function WorkoutEntry() {
   const [exerciseList, setExerciseList] = useState<any[]>([]);
   const [notes, setNotes] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [includeCardio, setIncludeCardio] = useState(false);
-  const [incline, setIncline] = useState('');
-  const [speed, setSpeed] = useState('');
-  const [cardioTime, setCardioTime] = useState('');
+  const [includeCardio, setIncludeCardio] = useState(true);
+  const [incline, setIncline] = useState('5');
+  const [speed, setSpeed] = useState('3.2');
+  const [cardioTime, setCardioTime] = useState('15');
   const [weight, setWeight] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
@@ -158,6 +159,25 @@ export default function WorkoutEntry() {
     });
   };
 
+  const updateExerciseSetField = (
+    exerciseIndex: number,
+    setIndex: number,
+    field: 'weight' | 'reps',
+    value: string
+  ) => {
+    setExerciseList(prev =>
+      prev.map((exercise, exIdx) => {
+        if (exIdx !== exerciseIndex) return exercise;
+        const updatedSets = [...exercise.sets];
+        const [weightValue = '', repsValue = ''] = (updatedSets[setIndex] || '@').split('@');
+        const nextWeight = field === 'weight' ? value : weightValue;
+        const nextReps = field === 'reps' ? value : repsValue;
+        updatedSets[setIndex] = `${nextWeight}@${nextReps}`;
+        return { ...exercise, sets: updatedSets };
+      })
+    );
+  };
+
   const saveEntry = async () => {
     if (!user) return;
     const pendingStored = JSON.parse(localStorage.getItem(pendingKey) || '[]');
@@ -190,10 +210,10 @@ export default function WorkoutEntry() {
       setWorkoutType('');
       setExerciseList([]);
       setNotes('');
-      setIncludeCardio(false);
-      setIncline('');
-      setSpeed('');
-      setCardioTime('');
+      setIncludeCardio(true);
+      setIncline('5');
+      setSpeed('3.2');
+      setCardioTime('15');
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
       setWeight('');
@@ -205,6 +225,17 @@ export default function WorkoutEntry() {
 
   return (
     <div className="space-y-8 pb-24">
+      <header className="flex items-center justify-start">
+        <button
+          type="button"
+          onClick={() => navigate('/workouts/select')}
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#101216] px-4 py-2 text-xs font-semibold text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)] hover:bg-[#151821]"
+        >
+          <span>←</span>
+          <span>Back</span>
+        </button>
+      </header>
+
       <AnimatePresence>
         {showSuccessModal && (
           <motion.div
@@ -224,61 +255,15 @@ export default function WorkoutEntry() {
       <section className="rounded-[32px] border border-[#1d1f25] bg-gradient-to-br from-[#0b0c10] via-[#0a0f12] to-[#050607] p-6 shadow-[0_25px_80px_rgba(0,0,0,0.6)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.4em] text-emerald-400">Log Workout</p>
-            <h1 className="text-3xl font-semibold text-white">Dial in the details</h1>
-            <p className="text-sm text-zinc-400">Date, type, sets, and cardio — all in one flow.</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.4em] text-emerald-400">Review Workout</p>
+            <h1 className="text-3xl font-semibold text-white">Finalize this session</h1>
+            <p className="text-sm text-zinc-400">Review queue, tweak sets, and save everything in one pass.</p>
           </div>
           <span className="rounded-full border border-emerald-400/30 px-4 py-1 text-xs font-semibold uppercase tracking-[0.4em] text-emerald-200">
             Session Builder
           </span>
         </div>
-        <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-[#070c0a] px-4 py-3 text-xs text-emerald-100/80">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>
-              Pending exercises: <strong className="text-emerald-200">{pendingCount}</strong>
-            </span>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                to="/workouts/select"
-                className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100"
-              >
-                Add Exercises
-              </Link>
-              <button
-                type="button"
-                onClick={loadPendingExercises}
-                className="rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-300 hover:text-white"
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-          {exerciseList.length > 0 && (
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              {exerciseList.map((ex, idx) => (
-                <div
-                  key={`${ex.name}-${idx}`}
-                  className="rounded-xl border border-white/10 bg-black/40 px-3 py-3"
-                >
-                  <p className="text-sm font-semibold text-white">{ex.name}</p>
-                  <div className="mt-2 space-y-1 text-[11px] text-emerald-100/70">
-                    {ex.sets.map((set: string, i: number) => {
-                      const [w, r] = (set || '').split('@');
-                      return (
-                        <div key={i} className="flex items-center justify-between">
-                          <span className="text-zinc-500">Set {i + 1}</span>
-                          <span className="text-white">{w || '—'} kg</span>
-                          <span className="text-white">{r || '—'} reps</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">Select Date</label>
             <button
@@ -312,6 +297,75 @@ export default function WorkoutEntry() {
           </div>
         </div>
 
+        <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-[#070c0a] px-4 py-3 text-xs text-emerald-100/80">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-emerald-300/90">Review Queue</p>
+              <p className="mt-1 text-sm text-emerald-100/85">
+                Pending exercises: <strong className="text-emerald-200">{pendingCount}</strong>
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-400">You can edit each set before saving.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to="/workouts/select"
+                className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100"
+              >
+                {pendingCount > 0 ? 'Add More' : 'Add Exercises'}
+              </Link>
+              <button
+                type="button"
+                onClick={() => navigate('/workouts/select')}
+                className="rounded-full border border-white/10 bg-black/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-300 hover:text-white"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+          {exerciseList.length > 0 && (
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              {exerciseList.map((ex, idx) => (
+                <div
+                  key={`${ex.name}-${idx}`}
+                  className="rounded-xl border border-white/10 bg-black/40 px-3 py-3"
+                >
+                  <p className="text-sm font-semibold text-white">{ex.name}</p>
+                  <div className="mt-2 space-y-1 text-[11px] text-emerald-100/70">
+                    {ex.sets.map((set: string, i: number) => {
+                      const [w = '', r = ''] = (set || '@').split('@');
+                      return (
+                        <div key={i} className="grid grid-cols-[44px_1fr_1fr] items-center gap-2 rounded-lg border border-white/5 px-2 py-2">
+                          <span className="text-zinc-500">Set {i + 1}</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={w}
+                            onChange={event => updateExerciseSetField(idx, i, 'weight', event.target.value)}
+                            placeholder="Weight (kg)"
+                            className="w-full rounded-md border border-white/10 bg-black/35 px-2 py-1 text-[11px] text-white placeholder:text-zinc-500 focus:border-emerald-400/50 focus:outline-none"
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            value={r}
+                            onChange={event => updateExerciseSetField(idx, i, 'reps', event.target.value)}
+                            placeholder="Reps"
+                            className="w-full rounded-md border border-white/10 bg-black/35 px-2 py-1 text-[11px] text-white placeholder:text-zinc-500 focus:border-emerald-400/50 focus:outline-none"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {exerciseList.length === 0 && (
+            <div className="mt-3 rounded-xl border border-white/10 bg-black/40 px-3 py-3 text-xs text-zinc-300">
+              No exercises in queue yet. Tap <strong>Add Exercises</strong> to build your session.
+            </div>
+          )}
+        </div>
         <div className="mt-6">
           <label className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">Workout Type (Manual Entry)</label>
           <Select onValueChange={setWorkoutType} value={workoutType}>
@@ -525,9 +579,9 @@ export default function WorkoutEntry() {
         <div className="mt-8 rounded-[32px] border border-emerald-400/20 bg-gradient-to-br from-[#03140b] via-[#041c0f] to-[#020805] p-6 shadow-[0_30px_70px_rgba(12,212,123,0.12)]">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">Cardio Block</p>
-              <h2 className="text-xl font-semibold text-white">Optional Finisher</h2>
-              <p className="text-xs text-emerald-100/70">Dial in incline, speed & pace when you want to sweat it out.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">Cardio Plan</p>
+              <h2 className="text-xl font-semibold text-white">Finisher (On by default)</h2>
+              <p className="text-xs text-emerald-100/70">Adjust incline, speed, and duration for today&apos;s finish.</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <input type="checkbox" className="peer sr-only" checked={includeCardio} onChange={() => setIncludeCardio(!includeCardio)} />
@@ -538,24 +592,33 @@ export default function WorkoutEntry() {
           </div>
           {includeCardio && (
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <Input
-                value={incline}
-                onChange={(e) => setIncline(e.target.value)}
-                placeholder="Incline"
-                className="rounded-2xl border border-emerald-500/30 bg-[#07150b] text-white"
-              />
-              <Input
-                value={speed}
-                onChange={(e) => setSpeed(e.target.value)}
-                placeholder="Speed (mph)"
-                className="rounded-2xl border border-emerald-500/30 bg-[#07150b] text-white"
-              />
-              <Input
-                value={cardioTime}
-                onChange={(e) => setCardioTime(e.target.value)}
-                placeholder="Time (mins)"
-                className="rounded-2xl border border-emerald-500/30 bg-[#07150b] text-white"
-              />
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-[0.25em] text-emerald-200/80">Incline (%)</label>
+                <Input
+                  value={incline}
+                  onChange={(e) => setIncline(e.target.value)}
+                  placeholder="e.g. 5"
+                  className="mt-2 rounded-2xl border border-emerald-500/30 bg-[#07150b] text-white"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-[0.25em] text-emerald-200/80">Speed (mph)</label>
+                <Input
+                  value={speed}
+                  onChange={(e) => setSpeed(e.target.value)}
+                  placeholder="e.g. 3.2"
+                  className="mt-2 rounded-2xl border border-emerald-500/30 bg-[#07150b] text-white"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-[0.25em] text-emerald-200/80">Time (min)</label>
+                <Input
+                  value={cardioTime}
+                  onChange={(e) => setCardioTime(e.target.value)}
+                  placeholder="e.g. 15"
+                  className="mt-2 rounded-2xl border border-emerald-500/30 bg-[#07150b] text-white"
+                />
+              </div>
             </div>
           )}
         </div>

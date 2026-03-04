@@ -399,9 +399,10 @@ export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
             { label: 'Active Streak', value: `${activeStreak} days`, sub: 'ON FIRE' },
             { label: 'Current Weight', value: formattedWeight, sub: 'Today' },
           ].map(card => (
-            <div
+            <Link
               key={card.label}
-              className="space-y-1 rounded-[28px] border border-[#2b2d33] bg-[#141519] px-5 py-6"
+              to="/history"
+              className="space-y-1 rounded-[28px] border border-[#2b2d33] bg-[#141519] px-5 py-6 transition hover:border-emerald-400/40 hover:bg-[#181a20]"
             >
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">
                 {card.label}
@@ -410,7 +411,7 @@ export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
               <p className="text-[10px] font-semibold uppercase tracking-[0.45em] text-emerald-300">
                 {card.sub}
               </p>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
