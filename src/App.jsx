@@ -11,9 +11,6 @@ import Welcome from './pages/Welcome';
 import OnboardingGoals from './pages/OnboardingGoals';
 import OnboardingSetup from './pages/OnboardingSetup';
 import SeedDebug from './pages/SeedDebug';
-import WorkoutSelection from './pages/WorkoutSelection';
-import ExerciseCategories from './pages/ExerciseCategories';
-import ExerciseList from './pages/ExerciseList';
 import { AuthProvider } from './lib/auth';
 import RequireAuth from './components/RequireAuth';
 import RequireOnboardingComplete from './components/RequireOnboardingComplete';
@@ -26,9 +23,9 @@ function App() {
           <Routes>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/entry" element={<WorkoutEntry />} />
-            <Route path="/workouts/select" element={<WorkoutSelection />} />
-            <Route path="/workouts/push-day" element={<ExerciseCategories />} />
-            <Route path="/workouts/chest" element={<ExerciseList />} />
+            <Route path="/workouts/select" element={<Navigate to="/entry" replace />} />
+            <Route path="/workouts/push-day" element={<Navigate to="/entry" replace />} />
+            <Route path="/workouts/chest" element={<Navigate to="/entry" replace />} />
             <Route path="/history" element={<WorkoutHistory />} />
             <Route path="/details/:dateDay" element={<WorkoutDetail />} />
             <Route path="/gann" element={<GannNumbers />} />
