@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import type { Session } from '@/types/WorkoutEntry';
 import { calculateStreak, calculateVolume, sessionCountThisWeek, migrateEntry } from '@/utils/firestore';
 import { Flame, Zap, Star, Bell, Edit } from 'lucide-react';
+import ActivityHeatmap from '@/components/ActivityHeatmap';
 
 const SPLIT_TITLES = {
   push: 'Push',
@@ -178,8 +179,11 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* ── Activity Heatmap ── */}
+        <ActivityHeatmap sessions={sessions} />
+
         {/* ── Stat row (3 cards) ── */}
-        <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-3 gap-3 mb-5 mt-5">
           {/* Streak */}
           <div
             className="p-3 rounded-2xl flex flex-col gap-2"

@@ -1,107 +1,55 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import axios from 'axios';
-import { Minus, Plus, Trash2, Loader } from 'lucide-react';
+import { Minus, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import type { Set } from '@/types/WorkoutEntry';
-import { SPLIT_LIBRARY } from '@/utils/firestore';
+import { ALL_EXERCISES, type LibraryExercise } from '@/utils/exerciseLibrary';
 
 const kgToLbs = (kg: number) => Math.round(kg * 2.20462 * 10) / 10;
-const lbsToKg = (lbs: number) => Math.round(lbs / 2.20462 * 100) / 100;
 
 interface QueuedExercise {
   name: string;
   focus: string;
   kind: string;
   sets: Set[];
-  image?: string | null;
-}
-
-interface WgerExercise {
-  id: number;
-  name: string;
-  target_muscle?: { name: string };
-  equipment?: { name: string };
-  image?: string;
-}
-
-interface WgerSearchResult {
-  id: number;
-  name: string;
-  equipment?: { name: string };
-  muscles?: Array<{ id: number; name: string }>;
-  images?: Array<{ image: string }>;
 }
 
 export default function Train() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
   // State
-  const [mode, setMode] = useState<'manual' | 'automatic'>('manual');
-  const [manualInput, setManualInput] = useState('');
-  const [autoInput, setAutoInput] = useState('');
-  const [manualSuggestions, setManualSuggestions] = useState<typeof SPLIT_LIBRARY['push']>([]);
-  const [autoResults, setAutoResults] = useState<WgerSearchResult[]>([]);
-  const [autoLoading, setAutoLoading] = useState(false);
+  const [mode, setMode] = useState<'manual' | 'smart'>('manual');
+  const [searchInput, setSearchInput] = useState('');
+  const [suggestions, setSuggestions] = useState<LibraryExercise[]>([]);
   const [queue, setQueue] = useState<QueuedExercise[]>([]);
   const [error, setError] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [includeCardio, setIncludeCardio] = useState(false);
+  const [cardioSpeed, setCardioSpeed] = useState('5');
+  const [cardioTime, setCardioTime] = useState('15');
 
-  // Get all exercises from local library for manual mode
+  // All exercises from library (MVP: both modes use same data)
   const allLibraryExercises = useMemo(() => {
-    return Object.values(SPLIT_LIBRARY).flat();
+    return ALL_EXERCISES;
   }, []);
 
-  // Manual mode: autocomplete from local library
+  // Search: filter library by input (both Manual and Smart modes)
   useEffect(() => {
-    if (!manualInput.trim()) {
-      setManualSuggestions([]);
+    if (!searchInput.trim()) {
+      setSuggestions([]);
       return;
     }
-    const query = manualInput.toLowerCase();
+    const query = searchInput.toLowerCase();
     const filtered = allLibraryExercises.filter(ex =>
       ex.name.toLowerCase().includes(query)
     );
-    setManualSuggestions(filtered.slice(0, 8));
-  }, [manualInput, allLibraryExercises]);
-
-  // Automatic mode: debounced wger.de search
-  useEffect(() => {
-    if (mode !== 'automatic') return;
-
-    if (!autoInput.trim()) {
-      setAutoResults([]);
-      return;
-    }
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(async () => {
-      setAutoLoading(true);
-      try {
-        const res = await axios.get(
-          `https://wger.de/api/v2/exercise/search/?language=english&term=${encodeURIComponent(autoInput)}`
-        );
-        const suggestions = (res.data?.suggestions || []).slice(0, 8);
-        setAutoResults(suggestions);
-      } catch (err) {
-        console.error('Error searching exercises:', err);
-        setAutoResults([]);
-      } finally {
-        setAutoLoading(false);
-      }
-    }, 350); // 350ms debounce
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [autoInput, mode]);
+    setSuggestions(filtered.slice(0, 12));
+  }, [searchInput, allLibraryExercises]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -116,14 +64,11 @@ export default function Train() {
     }
   }, [showDropdown]);
 
-  // Add exercise from manual mode
-  const addManualExercise = (exercise: typeof SPLIT_LIBRARY['push'][0]) => {
-    const defaultWeight = exercise.defWeight;
-    const defaultReps = exercise.defReps;
-
+  // Add exercise to queue
+  const addExercise = (exercise: LibraryExercise) => {
     const newSets: Set[] = Array.from({ length: 3 }, () => ({
-      w: defaultWeight,
-      r: defaultReps,
+      w: exercise.defWeight,
+      r: exercise.defReps,
       done: false,
       pr: false,
     }));
@@ -133,42 +78,12 @@ export default function Train() {
       focus: exercise.focus,
       kind: exercise.kind,
       sets: newSets,
-      image: null,
     };
 
     setQueue(prev => [...prev, newExercise]);
-    setManualInput('');
-    setManualSuggestions([]);
-    setError('');
-  };
-
-  // Add exercise from automatic mode
-  const addAutoExercise = (result: WgerSearchResult) => {
-    const muscle = result.muscles?.[0]?.name || 'General';
-    const equipment = result.equipment?.name || 'N/A';
-    const image = result.images?.[0]?.image || null;
-
-    const defaultWeight = 50;
-    const defaultReps = 10;
-
-    const newSets: Set[] = Array.from({ length: 3 }, () => ({
-      w: defaultWeight,
-      r: defaultReps,
-      done: false,
-      pr: false,
-    }));
-
-    const newExercise: QueuedExercise = {
-      name: result.name,
-      focus: muscle,
-      kind: equipment,
-      sets: newSets,
-      image,
-    };
-
-    setQueue(prev => [...prev, newExercise]);
-    setAutoInput('');
-    setAutoResults([]);
+    setSearchInput('');
+    setSuggestions([]);
+    setShowDropdown(false);
     setError('');
   };
 
@@ -230,9 +145,13 @@ export default function Train() {
       return;
     }
 
-    // Store in session state (via route params or context)
-    // Navigate to summary with queue data
-    navigate('/summary', { state: { queue, today } });
+    navigate('/summary', {
+      state: {
+        queue,
+        today,
+        cardio: includeCardio ? { speed: parseFloat(cardioSpeed), time: parseInt(cardioTime) } : null
+      }
+    });
   };
 
   const totalSets = queue.reduce((sum, ex) => sum + ex.sets.length, 0);
@@ -263,121 +182,61 @@ export default function Train() {
           Manual
         </button>
         <button
-          onClick={() => setMode('automatic')}
+          onClick={() => setMode('smart')}
           className="px-4 py-2 rounded-full text-sm font-semibold transition"
           style={{
-            background: mode === 'automatic' ? 'var(--tf-accent)' : 'var(--tf-surface)',
-            color: mode === 'automatic' ? 'var(--tf-accent-ink)' : 'var(--tf-ink2)',
-            border: `1px solid ${mode === 'automatic' ? 'var(--tf-accent)' : 'var(--tf-line2)'}`,
+            background: mode === 'smart' ? 'var(--tf-accent)' : 'var(--tf-surface)',
+            color: mode === 'smart' ? 'var(--tf-accent-ink)' : 'var(--tf-ink2)',
+            border: `1px solid ${mode === 'smart' ? 'var(--tf-accent)' : 'var(--tf-line2)'}`,
           }}
         >
-          API Search
+          Smart Search
         </button>
       </div>
 
       {/* Input Section */}
-      <div className="px-6 py-4" ref={dropdownRef}>
-        {mode === 'manual' ? (
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tf-mute)' }}>
-              Exercise Name
-            </label>
-            <input
-              type="text"
-              value={manualInput}
-              onChange={e => {
-                setManualInput(e.target.value);
-                setShowDropdown(true);
-              }}
-              onFocus={() => setShowDropdown(true)}
-              placeholder="Search exercises..."
-              className="w-full px-4 py-3 rounded-xl text-sm"
-              style={{
-                background: 'var(--tf-surface)',
-                border: '1px solid var(--tf-line)',
-                color: 'var(--tf-ink)',
-                outline: 'none',
-              }}
-            />
-            {showDropdown && manualSuggestions.length > 0 && (
-              <div
-                className="mt-1 rounded-xl overflow-hidden z-20 absolute left-6 right-6 max-w-none"
-                style={{ background: 'var(--tf-surface2)', border: '1px solid var(--tf-line2)' }}
+      <div className="px-6 py-4 relative" ref={dropdownRef}>
+        <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tf-mute)' }}>
+          {mode === 'manual' ? 'Exercise Name' : 'Search Library'}
+        </label>
+        <input
+          type="text"
+          value={searchInput}
+          onChange={e => {
+            setSearchInput(e.target.value);
+            setShowDropdown(true);
+          }}
+          onFocus={() => setShowDropdown(true)}
+          placeholder="Type exercise name..."
+          className="w-full px-4 py-3 rounded-xl text-sm"
+          style={{
+            background: 'var(--tf-surface)',
+            border: '1px solid var(--tf-line)',
+            color: 'var(--tf-ink)',
+            outline: 'none',
+          }}
+        />
+
+        {showDropdown && suggestions.length > 0 && (
+          <div
+            className="mt-2 rounded-xl overflow-hidden z-50 w-full max-h-64 overflow-y-auto"
+            style={{ background: 'var(--tf-surface2)', border: '1px solid var(--tf-line2)' }}
+          >
+            {suggestions.map(ex => (
+              <button
+                key={ex.name}
+                onClick={() => addExercise(ex)}
+                className="w-full px-4 py-3 text-left border-b text-sm hover:opacity-80 flex flex-col"
+                style={{ borderColor: 'var(--tf-line)' }}
               >
-                {manualSuggestions.map(ex => (
-                  <button
-                    key={ex.name}
-                    onClick={() => addManualExercise(ex)}
-                    className="w-full px-4 py-3 text-left border-b text-sm hover:opacity-80"
-                    style={{ borderColor: 'var(--tf-line)', color: 'var(--tf-ink2)' }}
-                  >
-                    <div className="font-semibold">{ex.name}</div>
-                    <div className="text-xs mt-0.5" style={{ color: 'var(--tf-mute)' }}>
-                      {ex.focus} · {ex.kind}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tf-mute)' }}>
-              Search API
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={autoInput}
-                onChange={e => {
-                  setAutoInput(e.target.value);
-                  setShowDropdown(true);
-                }}
-                onFocus={() => setShowDropdown(true)}
-                placeholder="Type to search..."
-                className="w-full px-4 py-3 rounded-xl text-sm"
-                style={{
-                  background: 'var(--tf-surface)',
-                  border: '1px solid var(--tf-line)',
-                  color: 'var(--tf-ink)',
-                  outline: 'none',
-                }}
-              />
-              {autoLoading && (
-                <Loader className="absolute right-4 top-3.5 w-4 h-4 animate-spin" style={{ color: 'var(--tf-mute)' }} />
-              )}
-            </div>
-            {showDropdown && autoResults.length > 0 && (
-              <div
-                className="mt-1 rounded-xl overflow-hidden z-20 absolute left-6 right-6 max-w-none max-h-64 overflow-y-auto"
-                style={{ background: 'var(--tf-surface2)', border: '1px solid var(--tf-line2)' }}
-              >
-                {autoResults.map(result => (
-                  <button
-                    key={result.id}
-                    onClick={() => addAutoExercise(result)}
-                    className="w-full px-4 py-3 text-left border-b text-sm hover:opacity-80 flex gap-3 items-start"
-                    style={{ borderColor: 'var(--tf-line)' }}
-                  >
-                    {result.images?.[0]?.image && (
-                      <img
-                        src={result.images[0].image}
-                        alt=""
-                        className="w-10 h-10 rounded object-cover shrink-0"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-sm" style={{ color: 'var(--tf-ink2)' }}>
-                        {result.name}
-                      </div>
-                      <div className="text-xs mt-0.5" style={{ color: 'var(--tf-mute)' }}>
-                        {result.muscles?.[0]?.name || 'N/A'} · {result.equipment?.name || 'N/A'}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+                <div className="font-semibold" style={{ color: 'var(--tf-ink2)' }}>
+                  {ex.name}
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--tf-mute)' }}>
+                  {ex.focus} · {ex.kind}
+                </div>
+              </button>
+            ))}
           </div>
         )}
       </div>
@@ -550,10 +409,87 @@ export default function Train() {
         )}
       </div>
 
+      {/* Cardio Finisher Section */}
+      <div className="px-6 py-4 border-t" style={{ borderColor: 'var(--tf-line)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--tf-mute)' }}>
+              Cardio Finisher
+            </p>
+            <p className="text-sm mt-1" style={{ color: 'var(--tf-mute)' }}>
+              Treadmill cooldown (optional)
+            </p>
+          </div>
+          <label className="relative inline-flex cursor-pointer items-center">
+            <input
+              type="checkbox"
+              className="peer sr-only"
+              checked={includeCardio}
+              onChange={() => setIncludeCardio(!includeCardio)}
+            />
+            <div
+              className="relative h-6 w-11 rounded-full transition-colors"
+              style={{
+                background: includeCardio ? 'var(--tf-accent)' : 'var(--tf-surface2)',
+                border: `1px solid ${includeCardio ? 'var(--tf-accent)' : 'var(--tf-line2)'}`,
+              }}
+            >
+              <div
+                className="absolute top-0.5 h-5 w-5 rounded-full transition-transform"
+                style={{
+                  background: includeCardio ? 'var(--tf-accent-ink)' : 'white',
+                  transform: includeCardio ? 'translateX(20px)' : 'translateX(2px)',
+                }}
+              />
+            </div>
+          </label>
+        </div>
+
+        {includeCardio && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tf-mute)' }}>
+                Speed (km/h)
+              </p>
+              <input
+                type="number"
+                step="0.1"
+                value={cardioSpeed}
+                onChange={e => setCardioSpeed(e.target.value)}
+                inputMode="decimal"
+                className="w-full px-3 py-2 rounded-lg text-sm font-semibold text-center"
+                style={{
+                  background: 'var(--tf-surface)',
+                  border: '1px solid var(--tf-line)',
+                  color: 'var(--tf-ink)',
+                }}
+              />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--tf-mute)' }}>
+                Time (min)
+              </p>
+              <input
+                type="number"
+                value={cardioTime}
+                onChange={e => setCardioTime(e.target.value)}
+                inputMode="numeric"
+                className="w-full px-3 py-2 rounded-lg text-sm font-semibold text-center"
+                style={{
+                  background: 'var(--tf-surface)',
+                  border: '1px solid var(--tf-line)',
+                  color: 'var(--tf-ink)',
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Sticky Save Button */}
       {queue.length > 0 && (
         <div
-          className="fixed bottom-0 left-0 right-0 p-4 border-t"
+          className="fixed bottom-20 left-0 right-0 p-4 border-t z-40"
           style={{
             background: 'var(--tf-bg)',
             borderColor: 'var(--tf-line)',

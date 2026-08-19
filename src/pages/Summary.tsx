@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
+import { AnimatePresence, motion } from 'framer-motion';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useAuth } from '@/lib/auth';
@@ -22,7 +23,8 @@ export default function Summary() {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
 
-  const state = location.state as { queue: QueuedExercise[]; today: string } | null;
+  const [showSuccess, setShowSuccess] = useState(false);
+  const state = location.state as { queue: QueuedExercise[]; today: string; cardio?: { speed: number; time: number } | null } | null;
 
   if (!state || !state.queue || state.queue.length === 0) {
     return (
@@ -32,7 +34,7 @@ export default function Summary() {
     );
   }
 
-  const { queue, today } = state;
+  const { queue, today, cardio } = state;
 
   // Calculate totals
   const totalSets = queue.reduce((sum, ex) => sum + ex.sets.length, 0);
@@ -59,18 +61,22 @@ export default function Summary() {
         workoutType: 'Today\'s Workout',
         exercises,
         notes: '',
-        cardio: null,
+        cardio: cardio || null,
       };
 
       await addDoc(collection(db, 'gymEntries'), newEntry);
 
-      // Show success and navigate to dashboard
-      navigate('/dashboard', { state: { message: 'Workout saved!' } });
+      // Show success modal
+      setShowSuccess(true);
+
+      // Navigate after 2 seconds
+      setTimeout(() => {
+        navigate('/dashboard', { state: { message: 'Workout saved!' } });
+      }, 2000);
     } catch (err) {
       console.error('Error saving workout:', err);
-      alert('Failed to save workout. Please try again.');
-    } finally {
       setSaving(false);
+      alert('Failed to save workout. Please try again.');
     }
   };
 
@@ -80,6 +86,37 @@ export default function Summary() {
 
   return (
     <div className="pb-24" style={{ background: 'var(--tf-bg)', color: 'var(--tf-ink)' }}>
+      {/* Success Modal */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="rounded-2xl px-8 py-12 text-center max-w-sm"
+              style={{ background: 'var(--tf-surface)', border: '1px solid var(--tf-line)' }}
+            >
+              <div className="text-5xl mb-4">✓</div>
+              <p className="text-2xl font-bold mb-2" style={{ color: 'var(--tf-ink)' }}>
+                Workout Saved!
+              </p>
+              <p className="text-sm" style={{ color: 'var(--tf-mute)' }}>
+                {queue.length} exercise{queue.length > 1 ? 's' : ''} · {totalSets} sets · {Math.round(totalVolume)}kg total
+              </p>
+              <p className="text-xs mt-4" style={{ color: 'var(--tf-mute2)' }}>
+                Redirecting to dashboard...
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="px-6 py-6 border-b" style={{ borderColor: 'var(--tf-line)' }}>
         <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--tf-mute)' }}>
@@ -175,9 +212,39 @@ export default function Summary() {
         </div>
       </div>
 
+      {/* Cardio Section (if included) */}
+      {cardio && (
+        <div className="px-6 py-4 border-t" style={{ borderColor: 'var(--tf-line)' }}>
+          <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--tf-mute)' }}>
+            Cardio Finisher
+          </p>
+          <div
+            className="rounded-2xl p-4 flex items-center justify-between"
+            style={{ background: 'var(--tf-surface)', border: '1px solid var(--tf-line)' }}
+          >
+            <div>
+              <p className="text-sm" style={{ color: 'var(--tf-mute)' }}>
+                Treadmill
+              </p>
+              <p className="text-lg font-semibold mt-1" style={{ color: 'var(--tf-ink)' }}>
+                {cardio.speed} km/h · {cardio.time} min
+              </p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p className="text-xs" style={{ color: 'var(--tf-mute)' }}>
+                Duration
+              </p>
+              <p className="text-xl font-bold" style={{ color: 'var(--tf-accent)' }}>
+                {cardio.time}m
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div
-        className="fixed bottom-0 left-0 right-0 p-4 border-t flex gap-3"
+        className="fixed bottom-20 left-0 right-0 p-4 border-t flex gap-3 z-40"
         style={{
           background: 'var(--tf-bg)',
           borderColor: 'var(--tf-line)',
@@ -198,13 +265,20 @@ export default function Summary() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex-1 px-4 py-3 rounded-2xl font-semibold text-sm transition disabled:opacity-50"
+          className="flex-1 px-4 py-3 rounded-2xl font-semibold text-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
           style={{
             background: saving ? 'var(--tf-mute)' : 'var(--tf-accent)',
             color: 'var(--tf-accent-ink)',
           }}
         >
-          {saving ? 'Saving...' : 'Save Workout'}
+          {saving ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Saving...
+            </span>
+          ) : (
+            'Save Workout'
+          )}
         </button>
       </div>
     </div>
