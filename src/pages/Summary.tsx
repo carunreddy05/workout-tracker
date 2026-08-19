@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useAuth } from '@/lib/auth';
-import type { Session, Exercise, Set } from '@/types/WorkoutEntry';
+import type { Set } from '@/types/WorkoutEntry';
 
 const kgToLbs = (kg: number) => Math.round(kg * 2.20462 * 10) / 10;
 
@@ -45,38 +45,24 @@ export default function Summary() {
 
     setSaving(true);
     try {
-      // Get weekday from date
-      const date = new Date(today);
-      const weekday = format(date, 'EEE');
-
-      // Convert queue to Exercise objects
-      const exercises: Exercise[] = queue.map(qEx => ({
+      // Convert queue to legacy format (what Dashboard.tsx expects)
+      const exercises = queue.map(qEx => ({
         name: qEx.name,
-        focus: qEx.focus,
-        kind: qEx.kind,
-        targetSets: qEx.sets.length,
-        lastWeight: qEx.sets[0]?.w || 0,
-        lastReps: qEx.sets[0]?.r || 10,
-        sets: qEx.sets,
+        sets: qEx.sets.map(set => `${set.w}@${set.r}`),
       }));
 
-      // Create session document
-      const sessionData: Session = {
-        id: '', // Will be set by Firestore
+      // Create legacy entry document
+      const newEntry = {
         userId: user.uid,
-        date: today,
-        weekday,
-        title: 'Today\'s Workout',
-        split: 'push', // Can be enhanced to auto-detect
-        durationMin: Math.round(totalSets * 2.5), // Estimate
-        sets: totalSets,
-        volume: totalVolume,
-        prs: 0, // Can implement PR detection later
+        dateDay: `${today} - ${format(new Date(today), 'EEEE')}`,
+        weight: 0,
+        workoutType: 'Today\'s Workout',
         exercises,
+        notes: '',
+        cardio: null,
       };
 
-      const docRef = await addDoc(collection(db, 'workouts'), sessionData);
-      sessionData.id = docRef.id;
+      await addDoc(collection(db, 'gymEntries'), newEntry);
 
       // Show success and navigate to dashboard
       navigate('/dashboard', { state: { message: 'Workout saved!' } });
