@@ -4,6 +4,8 @@ import Dashboard from './pages/Dashboard';
 import WorkoutEntry from './pages/WorkoutEntry';
 import WorkoutHistory from './pages/WorkoutHistory';
 import WorkoutDetail from './pages/WorkoutDetail';
+import Train from './pages/Train';
+import Summary from './pages/Summary';
 import GannNumbers from './pages/GannNumbers';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -23,9 +25,11 @@ function App() {
           <Routes>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/entry" element={<WorkoutEntry />} />
-            <Route path="/workouts/select" element={<Navigate to="/entry" replace />} />
-            <Route path="/workouts/push-day" element={<Navigate to="/entry" replace />} />
-            <Route path="/workouts/chest" element={<Navigate to="/entry" replace />} />
+            <Route path="/train" element={<Train />} />
+            <Route path="/summary" element={<Summary />} />
+            <Route path="/workouts/select" element={<Navigate to="/train" replace />} />
+            <Route path="/workouts/push-day" element={<Navigate to="/train" replace />} />
+            <Route path="/workouts/chest" element={<Navigate to="/train" replace />} />
             <Route path="/history" element={<WorkoutHistory />} />
             <Route path="/details/:dateDay" element={<WorkoutDetail />} />
             <Route path="/gann" element={<GannNumbers />} />

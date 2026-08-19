@@ -1,543 +1,354 @@
-// src/pages/Dashboard.tsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
-import '@/styles/calendar-custom.css';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '@/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { format, subDays } from 'date-fns';
-import WeightChart from '@/components/WeightChart';
-import { Settings } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import type { Session } from '@/types/WorkoutEntry';
+import { calculateStreak, calculateVolume, sessionCountThisWeek, migrateEntry } from '@/utils/firestore';
+import { Flame, Zap, Star, Bell, Edit } from 'lucide-react';
 
-interface WorkoutEntry {
-  dateDay: string;
-  workoutType: string;
-  exercises?: { name: string; sets: string[] }[];
-  cardio?: { incline?: string; speed?: string; time?: string };
-  weight?: number;
-  notes?: string;
-}
-
-type PeriodFilter = 'weekly' | 'monthly' | 'quarter' | 'all';
-
-const periodLabels: Record<PeriodFilter, string> = {
-  weekly: 'THIS WEEK',
-  monthly: 'THIS MONTH',
-  quarter: 'LAST 3 MONTHS',
-  all: 'ALL TIME',
+const SPLIT_TITLES = {
+  push: 'Push',
+  pull: 'Pull',
+  legs: 'Legs',
+  core: 'Core',
 };
 
-interface DashboardProps {
-  userAvatarUrl?: string;
+const SPLIT_SUBTITLES = {
+  push: 'Chest · Shoulders · Triceps',
+  pull: 'Back · Biceps · Rear Delts',
+  legs: 'Quads · Hamstrings · Glutes',
+  core: 'Abs · Obliques · Stability',
+};
+
+const SPLIT_COUNTS = {
+  push: 5,
+  pull: 5,
+  legs: 5,
+  core: 4,
+};
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
 }
 
-export default function Dashboard({ userAvatarUrl }: DashboardProps = {}) {
-  const [entries, setEntries] = useState<WorkoutEntry[]>([]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [period, setPeriod] = useState<PeriodFilter>('weekly');
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(userAvatarUrl);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+function getTodaySplit(): 'push' | 'pull' | 'legs' | 'core' {
+  const day = new Date().getDay();
+  if (day === 1 || day === 4) return 'pull';  // Mon, Thu
+  if (day === 2 || day === 5) return 'legs';  // Tue, Fri
+  if (day === 0) return 'core';               // Sun
+  return 'push';                              // Wed, Sat
+}
+
+function formatDate() {
+  const opts: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'long', day: 'numeric' };
+  return new Date().toLocaleDateString('en-US', opts).toUpperCase();
+}
+
+function getUserName(user: any): string {
+  if (!user) return 'Friend';
+
+  // Try displayName first
+  if (user.displayName) {
+    return user.displayName.split(' ')[0]; // First name only
+  }
+
+  // Fall back to email
+  if (user.email) {
+    const namePart = user.email.split('@')[0];
+    return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+  }
+
+  return 'Friend';
+}
+
+export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
-      setEntries([]);
+      setSessions([]);
+      setLoading(false);
       return;
     }
 
-    const fetchData = async () => {
-      const gymEntriesRef = collection(db, 'gymEntries');
-      const userQuery = query(gymEntriesRef, where('userId', '==', user.uid));
-      const snapshot = await getDocs(userQuery);
-      const loaded = snapshot.docs.map(docSnap => docSnap.data() as WorkoutEntry);
-      setEntries(loaded);
+    const fetchSessions = async () => {
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'gymEntries'), where('userId', '==', user.uid))
+        );
+        // Convert old format to new Session type
+        const converted = snap.docs
+          .map(doc => {
+            const data = doc.data() as any;
+            const migrated = migrateEntry(doc.id, data, user.uid);
+            return migrated;
+          })
+          .filter((s): s is Session => s !== null)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setSessions(converted);
+      } catch (error) {
+        console.error('Error fetching sessions:', error);
+        setSessions([]);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchData();
+
+    fetchSessions();
   }, [user]);
 
-  useEffect(() => {
-    if (userAvatarUrl) {
-      setAvatarUrl(userAvatarUrl);
-    }
-  }, [userAvatarUrl]);
+  const empty = sessions.length === 0;
+  const lastSession = sessions[0];
+  const streak = Math.max(0, calculateStreak(sessions) || 0);
+  const weeklyGoal = 4;
+  const weeklyDone = sessionCountThisWeek(sessions);
+  const weekPct = Math.min(weeklyDone / weeklyGoal, 1);
+  const totalVol = Math.max(0, sessions.reduce((sum, s) => {
+    const vol = calculateVolume(s);
+    return sum + (isNaN(vol) ? 0 : vol);
+  }, 0));
+  const todaySplit = getTodaySplit();
 
-  useEffect(() => {
-    if (!userAvatarUrl) {
-      const saved = localStorage.getItem('dashboardAvatarUrl');
-      if (saved) {
-        setAvatarUrl(saved);
-      }
-    }
-  }, [userAvatarUrl]);
-
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click();
+  const handleStartTraining = () => {
+    navigate('/train');
   };
 
-  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setAvatarError(null);
-    setIsUploadingAvatar(true);
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      setAvatarUrl(result);
-      localStorage.setItem('dashboardAvatarUrl', result);
-      setIsUploadingAvatar(false);
-      event.target.value = '';
-    };
-    reader.onerror = () => {
-      setAvatarError('Unable to read that image. Please try a different file.');
-      setIsUploadingAvatar(false);
-      event.target.value = '';
-    };
-    reader.readAsDataURL(file);
+  const handleEditSession = () => {
+    navigate('/entry'); // TODO: replace with Pick screen
   };
-
-  const formatDateKey = (date: Date) => format(date, 'yyyy-MM-dd');
-
-  const periodEntries = useMemo(() => {
-    const now = new Date();
-    const startDate = {
-      weekly: subDays(now, 7),
-      monthly: subDays(now, 30),
-      quarter: subDays(now, 90),
-      all: undefined,
-    }[period];
-
-    if (!startDate) return entries;
-
-    return entries.filter(entry => {
-      const entryDate = new Date(entry.dateDay?.split(' - ')[0]);
-      return entryDate >= startDate;
-    });
-  }, [entries, period]);
-
-  const calculateEntryVolume = (entry: WorkoutEntry) => {
-    if (!entry.exercises?.length) return 0;
-
-    return entry.exercises.reduce((total, exercise) => {
-      const setsVolume = exercise.sets.reduce((setSum, setString) => {
-        const normalized = setString?.trim();
-        if (!normalized) return setSum;
-
-        const match = normalized.match(/(\d+(?:\.\d+)?)\s*(?:x|×)\s*(\d+(?:\.\d+)?)/i);
-        if (match) {
-          const weight = parseFloat(match[1]);
-          const reps = parseFloat(match[2]);
-          return setSum + weight * reps;
-        }
-
-        const numbers = normalized.match(/\d+(?:\.\d+)?/g);
-        if (numbers && numbers.length >= 2) {
-          const weight = parseFloat(numbers[0]);
-          const reps = parseFloat(numbers[1]);
-          return setSum + weight * reps;
-        }
-
-        if (numbers && numbers.length === 1) {
-          return setSum + parseFloat(numbers[0]);
-        }
-
-        return setSum;
-      }, 0);
-
-      return total + setsVolume;
-    }, 0);
-  };
-
-  const totalVolume = useMemo(
-    () => periodEntries.reduce((sum, entry) => sum + calculateEntryVolume(entry), 0),
-    [periodEntries]
-  );
-
-  const totalWorkouts = periodEntries.length;
-  const cardioDays = new Set(
-    periodEntries
-      .filter(e => e.cardio && (e.cardio.incline || e.cardio.speed || e.cardio.time))
-      .map(e => e.dateDay?.split(' - ')[0])
-  ).size;
-
-  const activeStreak = useMemo(() => {
-    if (!entries.length) return 0;
-    const daySet = new Set(entries.map(e => e.dateDay?.split(' - ')[0]));
-    let streak = 0;
-    let cursor = new Date();
-
-    while (daySet.has(formatDateKey(cursor))) {
-      streak += 1;
-      cursor = subDays(cursor, 1);
-    }
-
-    return streak;
-  }, [entries]);
-
-  const newPrs = periodEntries.filter(entry =>
-    entry.notes?.toLowerCase().includes('pr')
-  ).length;
-
-  const latestWeightKg = useMemo(() => {
-    const weightedEntries = entries.filter(entry => typeof entry.weight === 'number');
-    if (!weightedEntries.length) return 0;
-
-    const sorted = [...weightedEntries].sort((a, b) => {
-      const aDate = new Date(a.dateDay?.split(' - ')[0]);
-      const bDate = new Date(b.dateDay?.split(' - ')[0]);
-      return aDate.getTime() - bDate.getTime();
-    });
-
-    return sorted[sorted.length - 1].weight ?? 0;
-  }, [entries]);
-
-  const getWorkoutInfo = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return entries.find(e => e.dateDay?.startsWith(dateStr)) || null;
-  };
-
-  const weeklyVolumeData = useMemo(() => {
-    const now = new Date();
-
-    return Array.from({ length: 4 }).map((_, index) => {
-      const blockIndex = 3 - index;
-      const rangeEnd = subDays(now, blockIndex * 7);
-      const rangeStart = subDays(rangeEnd, 6);
-
-      const total = entries.reduce((sum, entry) => {
-        const entryDate = new Date(entry.dateDay?.split(' - ')[0]);
-        if (entryDate >= rangeStart && entryDate <= rangeEnd) {
-          return sum + calculateEntryVolume(entry);
-        }
-        return sum;
-      }, 0);
-
-      return {
-        label: `Wk ${index + 1}`,
-        total: Math.round(total),
-      };
-    });
-  }, [entries]);
-
-  const volumeChange = useMemo(() => {
-    const latest = weeklyVolumeData[3]?.total ?? 0;
-    const previous = weeklyVolumeData[2]?.total ?? 0;
-    if (previous === 0) return 0;
-    return Math.round(((latest - previous) / previous) * 100);
-  }, [weeklyVolumeData]);
-
-  const muscleFocus = useMemo(() => {
-    if (!periodEntries.length) return [];
-    const focusMap = periodEntries.reduce<Record<string, number>>((acc, entry) => {
-      const key = entry.workoutType?.split('/')[0]?.trim() || 'Other';
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-
-    const total = Object.values(focusMap).reduce((sum, value) => sum + value, 0) || 1;
-    const palette = ['#32CD5A', '#3B82F6', '#F472B6', '#FACC15', '#F97316'];
-
-    return Object.entries(focusMap).map(([label, count], index) => ({
-      label,
-      value: Math.round((count / total) * 100),
-      color: palette[index % palette.length],
-    }));
-  }, [periodEntries]);
-
-  const focusGradient = useMemo(() => {
-    if (!muscleFocus.length) {
-      return 'radial-gradient(circle, rgba(50,205,90,0.25) 0%, rgba(5,17,8,1) 70%)';
-    }
-
-    let cumulative = 0;
-    const segments = muscleFocus
-      .map(item => {
-        const start = cumulative;
-        cumulative += item.value;
-        return `${item.color} ${start}% ${cumulative}%`;
-      })
-      .join(', ');
-
-    return `conic-gradient(${segments})`;
-  }, [muscleFocus]);
-
-  const workoutTypeBreakdown = useMemo(() => {
-    if (!periodEntries.length) {
-      return [
-        { label: 'Strength', value: 0 },
-        { label: 'Cardio', value: 0 },
-        { label: 'HIIT', value: 0 },
-      ];
-    }
-
-    let strength = 0;
-    let cardio = 0;
-    let hiit = 0;
-
-    periodEntries.forEach(entry => {
-      const type = entry.workoutType?.toLowerCase() || '';
-      if (type.includes('hiit')) {
-        hiit += 1;
-        return;
-      }
-
-      if (entry.cardio && (entry.cardio.time || entry.cardio.speed || entry.cardio.incline)) {
-        cardio += 1;
-        return;
-      }
-
-      strength += 1;
-    });
-
-    const total = Math.max(strength + cardio + hiit, 1);
-
-    return [
-      { label: 'Strength', value: Math.round((strength / total) * 100) },
-      { label: 'Cardio', value: Math.round((cardio / total) * 100) },
-      { label: 'HIIT', value: Math.round((hiit / total) * 100) },
-    ];
-  }, [periodEntries]);
-
-  const numberFormatter = new Intl.NumberFormat('en-US', {
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  });
-
-  const formattedVolume = totalVolume ? `${numberFormatter.format(totalVolume)} kg` : '0 kg';
-  const formattedWeight = latestWeightKg ? `${latestWeightKg} kg` : '0 kg';
-  const maxVolume = Math.max(...weeklyVolumeData.map(week => week.total), 1);
 
   return (
-    <div className="space-y-6 pb-20">
-      <section className="rounded-[36px] border border-[#1e2025] bg-[#0b0c10] p-6 shadow-[0_20px_80px_rgba(0,0,0,0.6)]">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={handleAvatarClick}
-              className="group relative h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-emerald-400/30 to-emerald-600/10 transition hover:border-emerald-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
-              aria-busy={isUploadingAvatar}
-            >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt="User avatar"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold uppercase tracking-widest text-emerald-100/80">
-                  Add
-                </span>
-              )}
-              {!isUploadingAvatar && (
-                <span className="absolute inset-0 hidden items-center justify-center bg-black/40 text-[10px] font-semibold uppercase tracking-wider text-white group-hover:flex">
-                  Change
-                </span>
-              )}
-              {isUploadingAvatar && (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/70 text-[10px] font-semibold uppercase tracking-wider text-white">
-                  Uploading…
-                </span>
-              )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarChange}
-            />
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.55em] text-emerald-300">
-                Your Progress
-              </p>
-              <h1 className="text-2xl font-semibold text-white">
-                {user?.displayName ? `Hello, ${user.displayName}` : 'Hello, Athlete'}
-              </h1>
-              <p className="text-sm text-zinc-400">Dialed in and consistent.</p>
-            </div>
+    <div className="min-h-screen" style={{ background: 'var(--tf-bg)' }}>
+      {/* Page content with padding */}
+      <div className="pb-32 px-6 pt-8">
+        {/* ── Header ── */}
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <p style={{ color: 'var(--tf-mute)', fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              {formatDate()}
+            </p>
+            <h1 style={{ color: 'var(--tf-ink)', fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em', marginTop: '6px' }}>
+              {empty ? `Welcome, ${getUserName(user)}` : `${getGreeting()}, ${getUserName(user)}`}
+            </h1>
           </div>
-          <button className="rounded-full border border-white/10 p-3 text-zinc-400 transition hover:text-white">
-            <Settings className="h-5 w-5" />
+          <button
+            className="w-11 h-11 flex items-center justify-center rounded-lg"
+            style={{ background: 'transparent', color: 'var(--tf-mute)' }}
+            aria-label="Notifications"
+          >
+            <Bell size={20} />
           </button>
         </div>
-        {avatarError && (
-          <p className="mt-3 text-xs font-medium text-rose-400">{avatarError}</p>
-        )}
 
-        <div className="mt-6 grid grid-cols-4 gap-3">
-          {([
-            { label: 'Weekly', value: 'weekly' },
-            { label: 'Monthly', value: 'monthly' },
-            { label: '3 Months', value: 'quarter' },
-            { label: 'All Time', value: 'all' },
-          ] as { label: string; value: PeriodFilter }[]).map(option => (
-            <button
-              key={option.value}
-              onClick={() => setPeriod(option.value)}
-              className={[
-                'w-full rounded-full border px-3 py-1.5 text-sm font-semibold transition',
-                period === option.value
-                  ? 'border-transparent bg-[#46d369] text-[#081604]'
-                  : 'border-[#2b2d33] bg-[#15161a] text-zinc-400 hover:text-white',
-              ].join(' ')}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-7 grid grid-cols-2 gap-4">
-          {[
-            { label: 'Total Workouts', value: totalWorkouts || 0, sub: periodLabels[period] },
-            { label: 'Total Cardio Days', value: cardioDays, sub: periodLabels[period] },
-            { label: 'Active Streak', value: `${activeStreak} days`, sub: 'ON FIRE' },
-            { label: 'Current Weight', value: formattedWeight, sub: 'Today' },
-          ].map(card => (
-            <Link
-              key={card.label}
-              to="/history"
-              className="space-y-1 rounded-[28px] border border-[#2b2d33] bg-[#141519] px-5 py-6 transition hover:border-emerald-400/40 hover:bg-[#181a20]"
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">
-                {card.label}
-              </p>
-              <p className="text-3xl font-bold text-white">{card.value}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.45em] text-emerald-300">
-                {card.sub}
-              </p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-[28px] border border-[#1c1d21] bg-[#111216] p-5">
-        <p className="text-sm font-semibold text-white">Muscle Group Focus</p>
-        <div className="mt-6 flex items-center gap-6">
-          <div className="relative h-32 w-32">
-            <div
-              className="h-full w-full rounded-full"
-              style={{ background: focusGradient }}
-            />
-            <div className="absolute inset-4 rounded-full border border-[#1f2024] bg-[#0a0b0f]" />
-            <div className="absolute inset-8 flex items-center justify-center rounded-full bg-black text-[10px] font-semibold uppercase tracking-widest text-emerald-200">
-              Focus
-            </div>
-          </div>
-          <div className="w-full space-y-3 text-sm">
-            {(muscleFocus.length ? muscleFocus : [{ label: 'Log workouts', value: 0, color: '#4ade80' }]).map(segment => (
-              <div key={segment.label} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: segment.color }} />
-                  <p className="text-white">{segment.label}</p>
-                </div>
-                <p className="text-xs text-zinc-400">{segment.value}%</p>
+        {/* ── Weekly progress card ── */}
+        <div
+          className="flex items-center gap-5 p-5 rounded-2xl mb-5"
+          style={{ background: 'var(--tf-surface)', border: '1px solid var(--tf-line)' }}
+        >
+          {/* Progress ring (simplified) */}
+          <div className="flex-shrink-0 w-20 h-20 rounded-full flex items-center justify-center" style={{ background: 'var(--tf-surface2)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--tf-ink)' }}>
+                {weeklyDone}
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[28px] border border-[#1c1d21] bg-[#111216] p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-white">Workout Type Breakdown</p>
-            <p className="text-[10px] uppercase tracking-[0.4em] text-emerald-400">Balance the work</p>
-          </div>
-          {/* <Link
-            to="/entry"
-            className="rounded-full border border-emerald-400/40 px-4 py-1 text-sm font-semibold text-emerald-300 hover:bg-emerald-400/10"
-          >
-            Start Session
-          </Link> */}
-        </div>
-        <div className="mt-6 space-y-4">
-          {workoutTypeBreakdown.map(item => (
-            <div key={item.label}>
-              <div className="flex items-center justify-between text-sm text-white">
-                <span>{item.label}</span>
-                <span className="text-emerald-300">{item.value}%</span>
-              </div>
-              <div className="mt-1 h-2 rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-lime-400"
-                  style={{ width: `${item.value}%` }}
-                />
+              <div style={{ fontSize: '11px', color: 'var(--tf-mute)', fontWeight: 600 }}>
+                /{weeklyGoal}
               </div>
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
 
-      <section className="rounded-[28px] border border-[#1c1d21] bg-[#111216] p-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.4em] text-emerald-400">
-              Workout Volume Over Time
+          {/* Text */}
+          <div className="flex-1">
+            <p style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--tf-accent)', marginBottom: '2px' }}>
+              THIS WEEK
             </p>
-            <p className="mt-2 text-4xl font-semibold text-white">{formattedVolume}</p>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-300/70">{periodLabels[period]}</p>
+            <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--tf-ink)', marginBottom: '3px' }}>
+              {weeklyDone < weeklyGoal ? `${weeklyGoal - weeklyDone} to go` : 'Goal met!'}
+            </p>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tf-mute)' }}>
+              {streak}-day streak
+            </p>
           </div>
-          <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300">
-            {volumeChange >= 0 ? `+${volumeChange}%` : `${volumeChange}%`}
-          </span>
         </div>
-        <div className="mt-6 grid grid-cols-4 gap-3">
-          {weeklyVolumeData.map(week => (
-            <div key={week.label} className="flex flex-col items-center gap-3">
-              <div className="flex h-40 w-full items-end rounded-3xl bg-[#1b1c21] p-2">
-                <div
-                  className="w-full rounded-2xl bg-gradient-to-b from-lime-400/90 via-emerald-400 to-emerald-500/70 transition-[height]"
-                  style={{ height: `${Math.max((week.total / maxVolume) * 100, 12)}%` }}
-                />
-              </div>
-              <p className="text-xs uppercase tracking-wide text-zinc-400">{week.label}</p>
-            </div>
-          ))}
-        </div>
-      </section>
 
-      <section className="rounded-[28px] border border-[#1c1d21] bg-[#111216] p-5 space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.4em] text-emerald-300">Workout Calendar</p>
-            <h3 className="text-2xl font-semibold text-white">Schedule & Highlights</h3>
-          </div>
-          <Link
-            to="/history"
-            className="rounded-full border border-white/10 px-4 py-1 text-sm text-zinc-300 hover:text-white"
+        {/* ── Stat row (3 cards) ── */}
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          {/* Streak */}
+          <div
+            className="p-3 rounded-2xl flex flex-col gap-2"
+            style={{ background: 'var(--tf-surface)', border: '1px solid var(--tf-line)' }}
           >
-            View History
-          </Link>
-        </div>
-        <div className="rounded-[24px] border border-[#1f2024] bg-[#09090d] p-4">
-          <Calendar
-            onChange={date => date && setSelectedDate(date as Date)}
-            value={selectedDate}
-            tileContent={({ date, view }) => {
-              const workout = getWorkoutInfo(date);
-              if (view === 'month' && workout) {
-                const type = workout.workoutType?.split('/')[0].toLowerCase();
-                const colorClass = `workout-indicator ${`workout-type-${type}`}`;
-                const displayText = workout.workoutType?.split('/')[0];
-                return (
-                  <div className="workout-container">
-                    <div className={colorClass}>{displayText}</div>
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
-        </div>
-      </section>
+            <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(249, 115, 22, 0.12)', color: 'var(--tf-accent)' }}>
+              <Flame size={18} />
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--tf-mute)', marginBottom: '2px' }}>Streak</p>
+              <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--tf-ink)' }}>{streak}</p>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--tf-mute)' }}>days</p>
+            </div>
+          </div>
 
-      <WeightChart entries={entries} />
+          {/* Volume */}
+          <div
+            className="p-3 rounded-2xl flex flex-col gap-2"
+            style={{ background: 'var(--tf-surface)', border: '1px solid var(--tf-line)' }}
+          >
+            <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6' }}>
+              <Zap size={18} />
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--tf-mute)', marginBottom: '2px' }}>Volume</p>
+              <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--tf-ink)' }}>
+                {isNaN(totalVol) ? '0.0' : (totalVol / 1000).toFixed(1)}
+              </p>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--tf-mute)' }}>K kg</p>
+            </div>
+          </div>
+
+          {/* PRs */}
+          <div
+            className="p-3 rounded-2xl flex flex-col gap-2"
+            style={{ background: 'var(--tf-surface)', border: '1px solid var(--tf-line)' }}
+          >
+            <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(34, 197, 94, 0.12)', color: 'var(--tf-good)' }}>
+              <Star size={18} fill="currentColor" />
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--tf-mute)', marginBottom: '2px' }}>PRs</p>
+              <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--tf-ink)' }}>
+                {(lastSession?.prs || 0) || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Today's plan hero (gradient card) ── */}
+        <div className="mb-5">
+          <p style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--tf-mute)', marginBottom: '8px' }}>
+            {empty ? 'Recommended' : "Today's plan"}
+          </p>
+          <div
+            className="p-5 rounded-2xl flex flex-col gap-4"
+            style={{
+              background: `linear-gradient(135deg, var(--tf-accent) 0%, var(--tf-accent2) 100%)`,
+            }}
+          >
+            <div>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--tf-accent-ink)', opacity: 0.7, marginBottom: '4px' }}>
+                {SPLIT_SUBTITLES[todaySplit]}
+              </p>
+              <h2 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--tf-accent-ink)', letterSpacing: '-0.02em' }}>
+                {SPLIT_TITLES[todaySplit]}
+              </h2>
+            </div>
+
+            <div style={{ display: 'flex', gap: '14px', fontSize: '13px', fontWeight: 700, color: 'var(--tf-accent-ink)', opacity: 0.85 }}>
+              <span>{SPLIT_COUNTS[todaySplit]} exercises</span>
+              <span>~52 min</span>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleStartTraining}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-semibold transition-all"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.15)',
+                  color: 'var(--tf-accent-ink)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  minHeight: '44px',
+                }}
+              >
+                Start training →
+              </button>
+              <button
+                onClick={handleEditSession}
+                className="flex-shrink-0 w-12 h-12 flex items-center justify-center rounded-2xl font-semibold transition-all"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.1)',
+                  color: 'var(--tf-accent-ink)',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+                aria-label="Edit workout"
+              >
+                <Edit size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Last session card ── */}
+        {!empty && lastSession && (
+          <div
+            className="p-4 rounded-2xl flex justify-between items-center"
+            style={{ background: 'var(--tf-surface)', border: '1px solid var(--tf-line)' }}
+          >
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--tf-ink)' }}>
+                {lastSession.title || 'Last Session'}
+              </h3>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--tf-mute)', marginTop: '4px' }}>
+                {lastSession.weekday} · {lastSession.sets || 0} sets
+              </p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--tf-ink)', fontVariantNumeric: 'tabular-nums' }}>
+                {isNaN(lastSession.volume) ? '0.0' : (lastSession.volume / 1000).toFixed(1)}
+                <span style={{ fontSize: '11px', color: 'var(--tf-mute)', fontWeight: 600, marginLeft: '2px' }}>K kg</span>
+              </p>
+              {(lastSession.prs || 0) > 0 && (
+                <p style={{ fontSize: '12px', color: 'var(--tf-good)', fontWeight: 700, marginTop: '4px' }}>
+                  {lastSession.prs} PR{lastSession.prs > 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom tab bar - static positioned */}
+      <div
+        className="fixed bottom-0 left-0 right-0 flex justify-around items-center py-4 px-6"
+        style={{
+          background: `linear-gradient(180deg, transparent 0%, var(--tf-bg) 40%)`,
+          borderTop: '1px solid var(--tf-line2)',
+          maxWidth: '100%',
+        }}
+      >
+        <button
+          onClick={() => {}}
+          className="flex flex-col items-center gap-1 text-center"
+          style={{ color: 'var(--tf-accent)', cursor: 'pointer', background: 'none', border: 'none', padding: '8px 16px' }}
+        >
+          <div style={{ fontSize: '18px' }}>🏠</div>
+          <p style={{ fontSize: '11px', fontWeight: 600 }}>Home</p>
+        </button>
+        <button
+          onClick={() => navigate('/train')}
+          className="flex flex-col items-center gap-1 text-center"
+          style={{ color: 'var(--tf-mute)', cursor: 'pointer', background: 'none', border: 'none', padding: '8px 16px' }}
+        >
+          <div style={{ fontSize: '18px' }}>🏋️</div>
+          <p style={{ fontSize: '11px', fontWeight: 600 }}>Train</p>
+        </button>
+        <button
+          onClick={() => navigate('/history')}
+          className="flex flex-col items-center gap-1 text-center"
+          style={{ color: 'var(--tf-mute)', cursor: 'pointer', background: 'none', border: 'none', padding: '8px 16px' }}
+        >
+          <div style={{ fontSize: '18px' }}>📊</div>
+          <p style={{ fontSize: '11px', fontWeight: 600 }}>History</p>
+        </button>
+      </div>
     </div>
   );
 }

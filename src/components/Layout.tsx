@@ -1,79 +1,61 @@
-// src/components/Layout.tsx
 import React from 'react';
 import Header from './Header';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { Dumbbell, History, Home, NotebookPen } from 'lucide-react';
+import { Dumbbell, History, Home } from 'lucide-react';
 
-type NavItem = {
-  to: string;
-  label: string;
-  Icon: LucideIcon;
-};
+type NavItem = { to: string; label: string; Icon: LucideIcon };
 
 const navItems: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', Icon: Home },
-  { to: '/workouts/select', label: 'Exercises', Icon: Dumbbell },
-  { to: '/entry', label: 'Log', Icon: NotebookPen },
+  { to: '/dashboard', label: 'Home', Icon: Home },
+  { to: '/train', label: 'Train', Icon: Dumbbell },
   { to: '/history', label: 'History', Icon: History },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const location = useLocation();
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 relative pb-36 sm:pb-0">
+    <div className="min-h-screen pb-28" style={{ background: 'var(--tf-bg)', color: 'var(--tf-ink)' }}>
       <Header />
-      <main className="p-4 max-w-5xl mx-auto">{children}</main>
+      <main className="px-4 pt-4 pb-4 max-w-5xl mx-auto">{children}</main>
 
-      {/* Mobile Bottom CTA + Nav */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/95 via-black/80 to-black/20 px-4 pb-4 pt-6 sm:hidden">
-        <div className="max-w-md mx-auto space-y-4">
-          {!location.pathname.startsWith('/workouts') && location.pathname !== '/entry' && (
-            <Link
-              to="/workouts/select"
-              className="flex items-center justify-center gap-2 rounded-3xl bg-gradient-to-r from-emerald-400 to-lime-400 py-3 text-base font-semibold text-emerald-950 shadow-[0_10px_35px_rgba(34,197,94,0.45)] transition hover:shadow-[0_15px_40px_rgba(34,197,94,0.6)]"
+      {/* Bottom tab bar */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-5 pt-4"
+        style={{ background: 'linear-gradient(to top, var(--tf-bg) 65%, transparent)' }}
+      >
+        <nav
+          className="mx-auto flex max-w-xs items-center rounded-full p-1.5 gap-1"
+          style={{
+            background: 'var(--tf-surface)',
+            border: '1px solid var(--tf-line)',
+          }}
+        >
+          {navItems.map(({ to, label, Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/dashboard'}
+              className={({ isActive }) =>
+                [
+                  'flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[13px] font-medium transition-all duration-150',
+                  isActive
+                    ? 'text-[var(--tf-accent-ink)]'
+                    : 'text-[var(--tf-mute)] hover:text-[var(--tf-ink2)]',
+                ].join(' ')
+              }
+              style={({ isActive }) =>
+                isActive ? { background: 'var(--tf-ink)' } : {}
+              }
             >
-              <Dumbbell className="h-5 w-5" />
-              Add New Workout
-            </Link>
-          )}
-
-          <nav className="flex items-center gap-3 rounded-[30px] border border-emerald-500/25 bg-[#050f08] px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-zinc-400 shadow-[0_10px_40px_rgba(0,0,0,0.65)]">
-            {navItems.map(({ to, label, Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  [
-                    'relative flex flex-1 flex-col items-center rounded-2xl px-3 py-2 transition',
-                    isActive
-                      ? 'text-white'
-                      : 'text-zinc-500 hover:text-zinc-200',
-                  ].join(' ')
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <div
-                      className={[
-                        'flex h-9 w-9 items-center justify-center rounded-2xl transition',
-                        isActive
-                          ? 'bg-gradient-to-b from-emerald-500/25 to-lime-400/10 text-lime-300'
-                          : 'bg-zinc-900/60 text-zinc-500',
-                      ].join(' ')}
-                    >
-                      <Icon className="h-[18px] w-[18px]" />
-                    </div>
-                    <span className="mt-1 text-[11px] tracking-tight">{label}</span>
-                    {isActive && (
-                      <span className="absolute -bottom-1 h-1 w-10 rounded-full bg-lime-400/70 blur-[1px]" />
-                    )}
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
+              {({ isActive }) => (
+                <>
+                  <Icon className="h-[15px] w-[15px] shrink-0" />
+                  <span>{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
       </div>
     </div>
   );
