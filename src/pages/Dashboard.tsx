@@ -7,6 +7,7 @@ import type { Session } from '@/types/WorkoutEntry';
 import { calculateStreak, calculateVolume, sessionCountThisWeek, migrateEntry } from '@/utils/firestore';
 import { Flame, Zap, Star, Bell, Edit } from 'lucide-react';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
+import WorkoutDetailModal from '@/components/WorkoutDetailModal';
 
 const SPLIT_TITLES = {
   push: 'Push',
@@ -71,6 +72,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -123,6 +126,16 @@ export default function Dashboard() {
 
   const handleEditSession = () => {
     navigate('/entry'); // TODO: replace with Pick screen
+  };
+
+  const handleDateClick = (session: Session) => {
+    setSelectedSession(session);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedSession(null);
   };
 
   return (
@@ -180,7 +193,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Activity Heatmap ── */}
-        <ActivityHeatmap sessions={sessions} />
+        <ActivityHeatmap sessions={sessions} onDateClick={handleDateClick} />
 
         {/* ── Stat row (3 cards) ── */}
         <div className="grid grid-cols-3 gap-3 mb-5 mt-5">
@@ -353,6 +366,13 @@ export default function Dashboard() {
           <p style={{ fontSize: '11px', fontWeight: 600 }}>History</p>
         </button>
       </div>
+
+      {/* Workout Detail Modal */}
+      <WorkoutDetailModal
+        session={selectedSession}
+        isOpen={showModal}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 }

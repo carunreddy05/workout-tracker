@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/firebase';
+import DatePickerHeader from '@/components/DatePickerHeader';
 import type { Set } from '@/types/WorkoutEntry';
 import { ALL_EXERCISES, type LibraryExercise } from '@/utils/exerciseLibrary';
 
@@ -23,6 +26,7 @@ export default function Train() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   // State
+  const [selectedDate, setSelectedDate] = useState(today);
   const [mode, setMode] = useState<'manual' | 'smart'>('manual');
   const [searchInput, setSearchInput] = useState('');
   const [suggestions, setSuggestions] = useState<LibraryExercise[]>([]);
@@ -32,11 +36,34 @@ export default function Train() {
   const [includeCardio, setIncludeCardio] = useState(false);
   const [cardioSpeed, setCardioSpeed] = useState('5');
   const [cardioTime, setCardioTime] = useState('15');
+  const [hasExistingData, setHasExistingData] = useState(false);
 
   // All exercises from library (MVP: both modes use same data)
   const allLibraryExercises = useMemo(() => {
     return ALL_EXERCISES;
   }, []);
+
+  // Check for existing data when date changes
+  useEffect(() => {
+    const checkExistingData = async () => {
+      if (!user) {
+        setHasExistingData(false);
+        return;
+      }
+
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'gymEntries'), where('userId', '==', user.uid), where('date', '==', selectedDate))
+        );
+        setHasExistingData(snap.size > 0);
+      } catch (error) {
+        console.error('Error checking existing data:', error);
+        setHasExistingData(false);
+      }
+    };
+
+    checkExistingData();
+  }, [selectedDate, user]);
 
   // Search: filter library by input (both Manual and Smart modes)
   useEffect(() => {
@@ -148,25 +175,33 @@ export default function Train() {
     navigate('/summary', {
       state: {
         queue,
-        today,
+        date: selectedDate,
         cardio: includeCardio ? { speed: parseFloat(cardioSpeed), time: parseInt(cardioTime) } : null
       }
     });
+  };
+
+  const handleDateChange = (date: string) => {
+    setSelectedDate(date);
+    setQueue([]);
+    setError('');
+  };
+
+  const handleExistingDataClick = () => {
+    navigate('/history');
   };
 
   const totalSets = queue.reduce((sum, ex) => sum + ex.sets.length, 0);
 
   return (
     <div className="pb-24" style={{ background: 'var(--tf-bg)', color: 'var(--tf-ink)' }}>
-      {/* Header */}
-      <div className="px-6 py-6 border-b" style={{ borderColor: 'var(--tf-line)' }}>
-        <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--tf-mute)' }}>
-          Today's Workout
-        </p>
-        <p className="mt-2 text-2xl font-bold" style={{ color: 'var(--tf-ink)' }}>
-          {format(new Date(), 'EEEE, MMM d')}
-        </p>
-      </div>
+      {/* Header with Date Picker */}
+      <DatePickerHeader
+        selectedDate={selectedDate}
+        onDateChange={handleDateChange}
+        hasExistingData={hasExistingData}
+        onExistingDataClick={handleExistingDataClick}
+      />
 
       {/* Mode Toggle */}
       <div className="px-6 py-4 flex gap-2">

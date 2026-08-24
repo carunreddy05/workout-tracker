@@ -24,7 +24,7 @@ export default function Summary() {
   const [saving, setSaving] = useState(false);
 
   const [showSuccess, setShowSuccess] = useState(false);
-  const state = location.state as { queue: QueuedExercise[]; today: string; cardio?: { speed: number; time: number } | null } | null;
+  const state = location.state as { queue: QueuedExercise[]; today?: string; date?: string; cardio?: { speed: number; time: number } | null } | null;
 
   if (!state || !state.queue || state.queue.length === 0) {
     return (
@@ -34,7 +34,8 @@ export default function Summary() {
     );
   }
 
-  const { queue, today, cardio } = state;
+  const { queue, cardio } = state;
+  const workoutDate = state.date || state.today || format(new Date(), 'yyyy-MM-dd');
 
   // Calculate totals
   const totalSets = queue.reduce((sum, ex) => sum + ex.sets.length, 0);
@@ -56,7 +57,7 @@ export default function Summary() {
       // Create legacy entry document
       const newEntry = {
         userId: user.uid,
-        dateDay: `${today} - ${format(new Date(today), 'EEEE')}`,
+        dateDay: `${workoutDate} - ${format(new Date(workoutDate), 'EEEE')}`,
         weight: 0,
         workoutType: 'Today\'s Workout',
         exercises,
@@ -81,7 +82,7 @@ export default function Summary() {
   };
 
   const handleCancel = () => {
-    navigate('/train', { state: { queue, today } });
+    navigate('/train', { state: { queue, date: workoutDate } });
   };
 
   return (

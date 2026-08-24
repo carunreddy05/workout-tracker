@@ -4,10 +4,11 @@ import type { Session } from '@/types/WorkoutEntry';
 
 interface ActivityHeatmapProps {
   sessions: Session[];
+  onDateClick?: (session: Session) => void;
 }
 
-export default function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
-  const [view, setView] = useState<'week' | 'month' | 'year'>('week');
+export default function ActivityHeatmap({ sessions, onDateClick }: ActivityHeatmapProps) {
+  const [view, setView] = useState<'week' | 'month' | 'year'>('month');
 
   // Build a set of workout dates for quick lookup
   const workoutDates = useMemo(() => {
@@ -60,17 +61,31 @@ export default function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
     return workoutDates.has(dateStr);
   };
 
+  const getSessionForDate = (date: Date): Session | undefined => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return sessions.find(s => s.date === dateStr);
+  };
+
   const DayDot = ({ date, label }: { date: Date; label?: string }) => {
     const workout = hasWorkout(date);
+    const session = workout ? getSessionForDate(date) : undefined;
+
+    const handleClick = () => {
+      if (session && onDateClick) {
+        onDateClick(session);
+      }
+    };
+
     return (
       <div className="flex flex-col items-center gap-1">
         <div
-          className="w-6 h-6 rounded-md transition-all"
+          onClick={handleClick}
+          className="w-6 h-6 rounded-md transition-all hover:scale-110 active:scale-95"
           title={format(date, 'MMM d, yyyy')}
           style={{
             background: workout ? 'var(--tf-accent)' : 'var(--tf-surface2)',
             border: `1px solid ${workout ? 'var(--tf-accent)' : 'var(--tf-line)'}`,
-            cursor: 'pointer',
+            cursor: workout ? 'pointer' : 'default',
           }}
         />
         {label && (
@@ -154,11 +169,19 @@ export default function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
                   const isCurrentMonth =
                     format(date, 'MMM yyyy') === month.monthYear;
                   const workout = hasWorkout(date);
+                  const session = workout ? getSessionForDate(date) : undefined;
+
+                  const handleClick = () => {
+                    if (session && onDateClick) {
+                      onDateClick(session);
+                    }
+                  };
 
                   return (
                     <div
                       key={dayIdx}
-                      className="w-5 h-5 rounded-sm transition-all"
+                      onClick={handleClick}
+                      className="w-5 h-5 rounded-sm transition-all hover:scale-110 active:scale-95"
                       title={isCurrentMonth ? format(date, 'MMM d, yyyy') : ''}
                       style={{
                         background: isCurrentMonth
@@ -169,7 +192,7 @@ export default function ActivityHeatmap({ sessions }: ActivityHeatmapProps) {
                         border: isCurrentMonth
                           ? `1px solid ${workout ? 'var(--tf-accent)' : 'var(--tf-line)'}`
                           : 'none',
-                        cursor: isCurrentMonth ? 'pointer' : 'default',
+                        cursor: isCurrentMonth && workout ? 'pointer' : isCurrentMonth ? 'default' : 'default',
                         opacity: isCurrentMonth ? 1 : 0.3,
                       }}
                     />
