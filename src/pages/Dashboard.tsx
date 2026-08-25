@@ -5,6 +5,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useAuth } from '@/lib/auth';
 import type { Session } from '@/types/WorkoutEntry';
 import { calculateStreak, calculateVolume, sessionCountThisWeek, migrateEntry } from '@/utils/firestore';
+import { parseDateKey } from '@/utils/week';
 import { Flame, Zap, Star, Bell, Edit } from 'lucide-react';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
 import WorkoutDetailModal from '@/components/WorkoutDetailModal';
@@ -95,7 +96,7 @@ export default function Dashboard() {
             return migrated;
           })
           .filter((s): s is Session => s !== null)
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          .sort((a, b) => parseDateKey(b.date).getTime() - parseDateKey(a.date).getTime());
         setSessions(converted);
       } catch (error) {
         console.error('Error fetching sessions:', error);

@@ -8,6 +8,7 @@ import { db } from '@/firebase';
 import DatePickerHeader from '@/components/DatePickerHeader';
 import type { Set } from '@/types/WorkoutEntry';
 import { ALL_EXERCISES, type LibraryExercise } from '@/utils/exerciseLibrary';
+import { isBodyweightOnly } from '@/utils/exerciseMeasurement';
 
 const kgToLbs = (kg: number) => Math.round(kg * 2.20462 * 10) / 10;
 
@@ -370,42 +371,46 @@ export default function Train() {
                         S{setIdx + 1}
                       </p>
 
-                      {/* Weight input */}
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => updateSetWeight(exIdx, setIdx, Math.max(5, set.w - 2.5))}
-                          className="p-1 rounded-full transition"
-                          style={{ border: '1px solid var(--tf-line)', color: 'var(--tf-mute)' }}
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <input
-                          type="number"
-                          value={set.w}
-                          onChange={e => updateSetWeight(exIdx, setIdx, parseFloat(e.target.value) || 0)}
-                          className="w-14 px-2 py-1 rounded text-center text-xs font-semibold"
-                          style={{
-                            background: 'var(--tf-surface)',
-                            border: '1px solid var(--tf-line)',
-                            color: 'var(--tf-ink)',
-                          }}
-                        />
-                        <button
-                          onClick={() => updateSetWeight(exIdx, setIdx, set.w + 2.5)}
-                          className="p-1 rounded-full transition"
-                          style={{ border: '1px solid var(--tf-line)', color: 'var(--tf-mute)' }}
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
+                      {!isBodyweightOnly(ex.name) && (
+                        <>
+                          {/* Weight input */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => updateSetWeight(exIdx, setIdx, Math.max(5, set.w - 2.5))}
+                              className="p-1 rounded-full transition"
+                              style={{ border: '1px solid var(--tf-line)', color: 'var(--tf-mute)' }}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <input
+                              type="number"
+                              value={set.w}
+                              onChange={e => updateSetWeight(exIdx, setIdx, parseFloat(e.target.value) || 0)}
+                              className="w-14 px-2 py-1 rounded text-center text-xs font-semibold"
+                              style={{
+                                background: 'var(--tf-surface)',
+                                border: '1px solid var(--tf-line)',
+                                color: 'var(--tf-ink)',
+                              }}
+                            />
+                            <button
+                              onClick={() => updateSetWeight(exIdx, setIdx, set.w + 2.5)}
+                              className="p-1 rounded-full transition"
+                              style={{ border: '1px solid var(--tf-line)', color: 'var(--tf-mute)' }}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
 
-                      <p className="text-xs" style={{ color: 'var(--tf-mute)' }}>
-                        {kgToLbs(set.w).toFixed(0)} lbs
-                      </p>
+                          <p className="text-xs" style={{ color: 'var(--tf-mute)' }}>
+                            {kgToLbs(set.w).toFixed(0)} lbs
+                          </p>
 
-                      <p className="text-xs mx-1" style={{ color: 'var(--tf-mute)' }}>
-                        ×
-                      </p>
+                          <p className="text-xs mx-1" style={{ color: 'var(--tf-mute)' }}>
+                            ×
+                          </p>
+                        </>
+                      )}
 
                       {/* Reps input */}
                       <div className="flex items-center gap-1">
@@ -435,6 +440,12 @@ export default function Train() {
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
+
+                      {isBodyweightOnly(ex.name) && (
+                        <p className="text-xs" style={{ color: 'var(--tf-mute)' }}>
+                          reps
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

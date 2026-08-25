@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, addDays, eachDayOfInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addDays, eachDayOfInterval } from 'date-fns';
 import type { Session } from '@/types/WorkoutEntry';
+import { getWeekBounds, toDateKey } from '@/utils/week';
 
 interface ActivityHeatmapProps {
   sessions: Session[];
@@ -15,13 +16,11 @@ export default function ActivityHeatmap({ sessions, onDateClick }: ActivityHeatm
     return new Set(sessions.map(s => s.date));
   }, [sessions]);
 
-  // Week view: current week (Sunday to Saturday)
+  // Week view: current calendar week (Sunday to Saturday), from the shared
+  // week utility — must match the "this week" definition used on Home.
   const weekDays = useMemo(() => {
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
-    const sundayOfThisWeek = addDays(today, -dayOfWeek);
-    const days = Array.from({ length: 7 }, (_, i) => addDays(sundayOfThisWeek, i));
-    return days;
+    const { start } = getWeekBounds();
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   }, []);
 
   // Month view: current month
