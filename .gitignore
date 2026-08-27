@@ -22,3 +22,22 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+serviceAccountKey.json
+*.pem
+*.p8
+*.p12
+*.mobileprovision
+.claude/settings.local.json
+mobile/.claude/settings.local.json
+
+# Design & Native files
+design_handoff_trackfit\ 2/
+ios/
+
+# Development scripts
+src/batchScript.js

@@ -27,5 +27,9 @@ export default defineConfig({
   server: {
     middlewareMode: false,
   },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
+  },
 })
 

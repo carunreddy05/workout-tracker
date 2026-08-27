@@ -6,6 +6,8 @@ import { addDoc, collection } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useAuth } from '@/lib/auth';
 import type { Set } from '@/types/WorkoutEntry';
+import { todayKey, parseDateKey } from '@/utils/week';
+import { calcSetVolume, isBodyweightOnly } from '@/utils/exerciseMeasurement';
 
 const kgToLbs = (kg: number) => Math.round(kg * 2.20462 * 10) / 10;
 
@@ -35,12 +37,12 @@ export default function Summary() {
   }
 
   const { queue, cardio } = state;
-  const workoutDate = state.date || state.today || format(new Date(), 'yyyy-MM-dd');
+  const workoutDate = state.date || state.today || todayKey();
 
   // Calculate totals
   const totalSets = queue.reduce((sum, ex) => sum + ex.sets.length, 0);
   const totalVolume = queue.reduce((sum, ex) => {
-    return sum + ex.sets.reduce((exSum, set) => exSum + set.w * set.r, 0);
+    return sum + ex.sets.reduce((exSum, set) => exSum + calcSetVolume(ex.name, set.w, set.r), 0);
   }, 0);
 
   const handleSave = async () => {
@@ -57,7 +59,7 @@ export default function Summary() {
       // Create legacy entry document
       const newEntry = {
         userId: user.uid,
-        dateDay: `${workoutDate} - ${format(new Date(workoutDate), 'EEEE')}`,
+        dateDay: `${workoutDate} - ${format(parseDateKey(workoutDate), 'EEEE')}`,
         weight: 0,
         workoutType: 'Today\'s Workout',
         exercises,
@@ -196,18 +198,20 @@ export default function Summary() {
                       color: 'var(--tf-ink2)',
                     }}
                   >
-                    {kgToLbs(set.w).toFixed(0)} lbs × {set.r}
+                    {isBodyweightOnly(ex.name) ? `${set.r} reps` : `${kgToLbs(set.w).toFixed(0)} lbs × ${set.r}`}
                   </div>
                 ))}
               </div>
 
               {/* Exercise volume */}
-              <p className="text-xs mt-3" style={{ color: 'var(--tf-mute)' }}>
-                Volume:{' '}
-                <span style={{ color: 'var(--tf-accent)' }}>
-                  {Math.round(ex.sets.reduce((sum, s) => sum + s.w * s.r, 0))}
-                </span>
-              </p>
+              {!isBodyweightOnly(ex.name) && (
+                <p className="text-xs mt-3" style={{ color: 'var(--tf-mute)' }}>
+                  Volume:{' '}
+                  <span style={{ color: 'var(--tf-accent)' }}>
+                    {Math.round(ex.sets.reduce((sum, s) => sum + calcSetVolume(ex.name, s.w, s.r), 0))}
+                  </span>
+                </p>
+              )}
             </div>
           ))}
         </div>

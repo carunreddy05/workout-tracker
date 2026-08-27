@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { format, addDays, parse } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { ChevronLeft, ChevronRight, AlertCircle, Calendar } from 'lucide-react';
+import { todayKey, parseDateKey } from '@/utils/week';
 
 interface DatePickerHeaderProps {
   selectedDate: string; // "yyyy-MM-dd"
@@ -18,8 +19,8 @@ export default function DatePickerHeader({
   const [showPicker, setShowPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const selectedDateObj = parse(selectedDate, 'yyyy-MM-dd', new Date());
+  const today = todayKey();
+  const selectedDateObj = parseDateKey(selectedDate);
   const isToday = selectedDate === today;
   const isPast = selectedDate < today;
 
@@ -162,7 +163,7 @@ export default function DatePickerHeader({
           <div className="grid grid-cols-7 gap-2">
             {last30Days.map(date => {
               const isSelected = date === selectedDate;
-              const dateObj = parse(date, 'yyyy-MM-dd', new Date());
+              const dateObj = parseDateKey(date);
               const day = format(dateObj, 'd');
               const isCurrentDate = date === today;
               const dayOfWeek = format(dateObj, 'EEE');

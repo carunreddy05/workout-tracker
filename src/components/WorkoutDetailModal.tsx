@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
-import { format, parse } from 'date-fns';
+import { format } from 'date-fns';
 import { X, Flame, Zap, Star } from 'lucide-react';
 import type { Session } from '@/types/WorkoutEntry';
+import { isBodyweightOnly } from '@/utils/exerciseMeasurement';
+import { parseDateKey } from '@/utils/week';
 
 interface WorkoutDetailModalProps {
   session: Session | null;
@@ -27,7 +29,7 @@ export default function WorkoutDetailModal({ session, isOpen, onClose }: Workout
 
   if (!isOpen || !session) return null;
 
-  const sessionDate = parse(session.date, 'yyyy-MM-dd', new Date());
+  const sessionDate = parseDateKey(session.date);
 
   return (
     <>
@@ -192,20 +194,28 @@ export default function WorkoutDetailModal({ session, isOpen, onClose }: Workout
                           Set {setIdx + 1}
                         </p>
                         <div className="flex items-center gap-3">
-                          <div className="text-right">
+                          {isBodyweightOnly(exercise.name) ? (
                             <p className="text-sm font-semibold" style={{ color: 'var(--tf-ink)' }}>
-                              {set.w} kg
+                              {set.r} reps
                             </p>
-                            <p className="text-xs" style={{ color: 'var(--tf-mute)' }}>
-                              ({kgToLbs(set.w).toFixed(0)} lbs)
-                            </p>
-                          </div>
-                          <p className="text-xs font-semibold" style={{ color: 'var(--tf-mute)' }}>
-                            ×
-                          </p>
-                          <p className="text-sm font-semibold min-w-8 text-right" style={{ color: 'var(--tf-ink)' }}>
-                            {set.r}
-                          </p>
+                          ) : (
+                            <>
+                              <div className="text-right">
+                                <p className="text-sm font-semibold" style={{ color: 'var(--tf-ink)' }}>
+                                  {set.w} kg
+                                </p>
+                                <p className="text-xs" style={{ color: 'var(--tf-mute)' }}>
+                                  ({kgToLbs(set.w).toFixed(0)} lbs)
+                                </p>
+                              </div>
+                              <p className="text-xs font-semibold" style={{ color: 'var(--tf-mute)' }}>
+                                ×
+                              </p>
+                              <p className="text-sm font-semibold min-w-8 text-right" style={{ color: 'var(--tf-ink)' }}>
+                                {set.r}
+                              </p>
+                            </>
+                          )}
                           {set.pr && (
                             <div
                               className="w-5 h-5 rounded-full flex items-center justify-center"
