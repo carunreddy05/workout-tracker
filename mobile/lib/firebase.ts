@@ -43,6 +43,24 @@ export const auth = initializeAuth(app, {
   persistence: getAuthPersistence(),
 });
 
+/**
+ * Firestore's own persistentLocalCache requires IndexedDB, which doesn't
+ * exist in React Native's JS environment — it fails at init and silently
+ * falls back to an in-memory cache (confirmed via the runtime warning this
+ * threw when first wired up). The `firebase` JS SDK does not offer working
+ * offline persistence on RN; getting real Firestore-level offline queuing
+ * would mean switching to @react-native-firebase's native SDK, a much
+ * bigger native-module change out of scope here.
+ *
+ * PRD §21's actual requirement — an active workout survives backgrounding,
+ * lock, and offline use — is met a different way instead: the workout
+ * itself lives in AsyncStorage (lib/activeWorkoutStorage.ts) for the entire
+ * time it's in progress, not in Firestore. Firestore is only touched once,
+ * at Finish. If that single write fails (offline or otherwise), Train's
+ * handleFinish deliberately does NOT clear the AsyncStorage record until
+ * the write succeeds, so a failed Finish loses nothing — the workout is
+ * still there to retry, not silently dropped.
+ */
 export const db = getFirestore(app);
 
 /**

@@ -6,44 +6,16 @@ import { useAuth } from '@/lib/auth';
 import type { Session } from '@/types/WorkoutEntry';
 import { calculateStreak, calculateVolume, sessionCountThisWeek, migrateEntry } from '@/utils/firestore';
 import { parseDateKey } from '@/utils/week';
+import { SPLIT_TITLES, SPLIT_SUBTITLES, SPLIT_COUNTS, getTodaySplit } from '@/utils/plan';
 import { Flame, Zap, Star, Bell, Edit } from 'lucide-react';
 import ActivityHeatmap from '@/components/ActivityHeatmap';
 import WorkoutDetailModal from '@/components/WorkoutDetailModal';
-
-const SPLIT_TITLES = {
-  push: 'Push',
-  pull: 'Pull',
-  legs: 'Legs',
-  core: 'Core',
-};
-
-const SPLIT_SUBTITLES = {
-  push: 'Chest · Shoulders · Triceps',
-  pull: 'Back · Biceps · Rear Delts',
-  legs: 'Quads · Hamstrings · Glutes',
-  core: 'Abs · Obliques · Stability',
-};
-
-const SPLIT_COUNTS = {
-  push: 5,
-  pull: 5,
-  legs: 5,
-  core: 4,
-};
 
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
-}
-
-function getTodaySplit(): 'push' | 'pull' | 'legs' | 'core' {
-  const day = new Date().getDay();
-  if (day === 1 || day === 4) return 'pull';  // Mon, Thu
-  if (day === 2 || day === 5) return 'legs';  // Tue, Fri
-  if (day === 0) return 'core';               // Sun
-  return 'push';                              // Wed, Sat
 }
 
 function formatDate() {

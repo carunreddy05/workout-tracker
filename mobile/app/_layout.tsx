@@ -1,8 +1,8 @@
 import { useFonts } from 'expo-font';
 import { Sora_400Regular, Sora_600SemiBold, Sora_700Bold } from '@expo-google-fonts/sora';
 import { InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument-serif';
-import { Stack, ThemeProvider } from 'expo-router';
-import type { Theme } from '@react-navigation/native';
+import { Stack } from 'expo-router';
+import { ThemeProvider, type Theme } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';

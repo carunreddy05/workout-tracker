@@ -56,4 +56,6 @@ const light = {
   tabIconSelected: '#f97316',
 };
 
-export default { light, dark };
+const Colors = { light, dark };
+export default Colors;
+export type Theme = typeof dark;

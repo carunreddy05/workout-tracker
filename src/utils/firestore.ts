@@ -8,7 +8,7 @@ import type {
   Exercise,
   Session,
   LegacyGymEntry,
-} from '@/types/WorkoutEntry';
+} from '../types/WorkoutEntry';
 import { format } from 'date-fns';
 import { toDateKey, parseDateKey, isDateKeyInWeek } from './week';
 import { calcSetVolume, isBodyweightOnly } from './exerciseMeasurement';
