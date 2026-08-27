@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cmd=$(python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"tool_input\",{}).get(\"command\",\"\"))' 2>/dev/null); case \"$cmd\" in *\"git commit\"*) diff=$(git diff --cached -- . ':(exclude)src/firebase.ts' ':(exclude)mobile/lib/firebase.ts' 2>/dev/null); if printf '%s' \"$diff\" | grep -qinE 'AIza[0-9A-Za-z_-]{10,}|sk-[A-Za-z0-9]{20,}|sk_live_[A-Za-z0-9]+|pk_live_[A-Za-z0-9]+|ghp_[A-Za-z0-9]{30,}|gho_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{12,}|xox[baprs]-[A-Za-z0-9-]+|-----BEGIN [A-Z ]*PRIVATE KEY-----|(secret|password|passwd)[_-]?(key)?[[:space:]]*[:=][[:space:]]*.?[A-Za-z0-9+/_.=-]{6,}'; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Blocked: staged changes contain what looks like a secret (API key/token/password pattern). Run git diff --cached to inspect. src/firebase.ts and mobile/lib/firebase.ts are excluded from this scan (known-safe Firebase client config) - something else matched.\"}}'; fi ;; esac",
+            "statusMessage": "Scanning staged changes for secrets before commit..."
+          }
+        ]
+      }
+    ]
+  }
+}
